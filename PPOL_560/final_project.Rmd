@@ -1,0 +1,317 @@
+---
+title: "Project on Gender Inequality In Việt Nam"
+author: "Sahithi Adari and Justine Huynh"
+date: "December 4th, 2020"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE, message = FALSE, warning = FALSE}
+## Preparation
+require(knitr)
+
+options(digits = 6)
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+
+```
+
+## Part 1: Discuss existing research
+1. **Find a research paper on a topic of interest that uses OLS or probit/logit/LPM.**
+  a. **Provide a complete citation to this work. Please include a link (or send the paper) if possible. Discuss the key finding of the paper.**
+
+Le, Duc Dung, Leon-Gonzalez, Roberto, & Giang, Long Thanh. “Decomposing gender in functional disability among older people in Vietnam.” Archives of Gerontology and Geriatrics. (Link to website: https://www.sciencedirect.com/science/article/abs/pii/S0167494319302328).
+
+This study uses data from the 2011 Vietnam Aging Survey (VNAS), which “contains rich information on socio-demographic characteristics, living conditions, and health conditions” [2] to see if there exists a difference in functional disability between older men and women in Vietnam. 
+
+This study uses multiple statistical analysis models--including Pearson’s chi-squared test, Ramsey’s RESET, Chow test, and an Oaxaca-Binder decomposition analysis--but we will be focusing on the multivariate ordinary least squares (OLS) models explaining functional disability for this paper as this is the model we're most comfortable with. 
+
+There were 3 key findings: 1) functional disability was more prevalent amongst older Vietnamese women than men; 2) when the study controlled for socio-demographic factors, the functional disability score for women were considerably higher than for men; and 3) both populations of interest had similar factors that determined functional disability. The decompositional results showed that these social factors (specifically age, education, employment, and perceived sufficiency of income) explained about 54% of gender inequality in functional disability. 
+
+This study raises awareness of the deeply-entrenched gender inequality that occurs because of social variables and proposes a policy that “should target improving education and employment in women in order to mitigate gender inequalities in health.” [7]
+
+2. **What is the analytical question? (If there are multiple analyses/questions addressed in the paper, focus on a single important question).**
+
+The question we will be focusing on is the following: what factors exacerbate the gender inequality present between elderly Vietnamese men and women as it relates to functional disability. This study also delves into questions about how prevalent gender inequality is within the population in question, and how big this gap actually is. 
+  
+  For the sake of clarity and brevity, when we refer to men and women in this paper we will be specifically referring to elderly Vietnamese men and women as defined in the paper to be aged 60 years and older.   
+
+  a. **Why is it important to answer this question?**
+
+As populations get older and live longer, many people are concerned with the health needs of this aging population; Vietnam is no exception. Although Vietnam has enjoyed vast economic growth that has improved the socio-economic status and healthcare, there is scant empirical data on studying the gender inequality that exists within healthcare, much less on the functionally disabled senior citizens. 
+
+These types of studies are important as Le et al. (2019) themselves state, “To design more effective health-policy responses to gender inequality in health, it is important to quantify the contribution of factors that are attributed to such inequality” [2].	
+
+  b. **Write out a statistical model and pay special attention to your subscripts, as these indicate your unit-of-analysis (e.g., individuals at a given point in time, or national data over time or perhaps individual data over time).**
+
+One of the key statistical model used is a multivariate OLS model. The authors of the paper run 3 different model including a variety of different variables in each iteration: 
+
+\begin{align}
+\textit{Functional Disability} &= \beta_0 + \beta_1{\textit{Gender}}_i + \beta_2{\textit{Age}}_i + \epsilon_i   
+\end{align}
+
+\begin{multline} 
+\textit{Functional Disability} = \beta_0 + \beta_1{\textit{Gender}}_i + \beta_2{\textit{Age}}_i +  
+\beta_3 {\textit{Marital Status}}_i + \beta_4 {\textit{Living Arrangement}}_i + \\
+\beta_5 {\textit{Place of Residence}}_i + \beta_6 {\textit{Region}}_i + \beta_7 {\textit{Ethnicity}}_i + \epsilon_i  
+\end{multline}
+
+\begin{multline} 
+\textit{Functional Disability} = \beta_0 + \beta_1{\textit{Gender}}_i + \beta_2{\textit{Age}}_i +  
+\beta_3 {\textit{Marital Status}}_i + \beta_4 {\textit{Living Arrangement}}_i + \\
+\beta_5 {\textit{Place of Residence}}_i + \beta_6 {\textit{Region}}_i + \beta_7 {\textit{Ethnicity}}_i + 
+\beta_8 {\textit{Education Level}}_i + \beta_9 {\textit{Employment Status}}_i + \\
+\beta_{10} {\textit{Sufficiency of Income}}_i + \beta_{11} {\textit{Wealth}}_i + \epsilon_i  
+\end{multline}
+
+The constant ($\beta_0$) in the last model refers to the functional disability of minimally educated, poor, 60-69 year old Kinh men who are married but live alone in the rural Northern part of Vietnam. These men are not working and have an insufficient income. 
+
+  c. **What is dependent variable?**
+  
+The dependent variable is a continuous variable charting the severity of Functional Disability from 0 being no disability to 12 being the highest level of disability. 
+  
+The World Health Organization defines disability as “difficulties encountered in any or all three areas of functioning, namely impairments, activity limitations, and participation restrictions” [2]. But, for the purposes of this study, Le et al. (2019) define people with functional disabilities as those who reported at least one activity limitation. [2] 
+  
+  d. **What is the key independent variable (or, in some cases, variables)?**
+  
+The key independent variable is *Gender*, denoted as $Gender_i$, where $i$ indexes each individual with a binary variable that is 1 if the individual is female and 0 if the individual is male. But the secondary control variables are *Age*, *Marital Status*, *Living Arrangement*, *Place of Residence*, *Region*, *Ethnicity*, *Education Level*, *Employment Status*, *Sufficiency of Income*, and *Household Wealth*.
+  
+Because various research has shown that income is a good indicator of health[^1], Le et al. (2019) included two different measurements of income: a perceived sufficient of income (a binary variable) and a household wealth index generated through a principal components analysis (PCA).
+
+The PCA takes various characteristics of the home (including household durable assets, housing quality, and sanitation facilities) into account in order to generate a household wealth index. This was included as it is preferred in low and middle income countries since reliable data about household finances is sparse or difficult to collect.
+
+  e. **What are the null and alternative hypotheses?**
+  
+  * $H_0:\beta_1 = 0$ There is no difference in the severity of functional disability between men and women.
+  * $H_a:\beta_1 \neq 0$ There is non-zero difference in the severity of functional disability between men and women.
+  
+  f. **Does the model use any specific functional form (e.g., probit, log)? If yes, explain why.**
+
+No the paper does not use any specific functional form; the model utilized is a simple multivariate OLS.
+
+3. **Endogeneity**
+  a. **Which sources of endogeneity are the authors able to control for with additional control variables?**
+
+As mentioned above, Le et al. (2019) included the following control variables in order to control for endogeneity: age; a categorical variable for region; a dummy variable for ethnicity (whether the citizen was Kinh); education level; a dummy variable for employment status; a dummy variable for perceived sufficiency of income; and  as well as household wealth. 
+
+Because this is a demographic study specifically determining what aspects, outside of gender, would affect functional disability in men and women, there would be omitted variable bias if we excluded these variables from the model.
+
+For instance, the study states that people with higher education levels tended to have lighter functional disabilities than people with lower education levels. The study also states that women tended to have lower education levels than their male counterparts, so education correlates both with the independent variable gender and the dependent variable functional disability. 
+
+Excluding the education level, holding all else constant, would cause the authors to overestimate the severity of functional disability based on gender. Including this education variable, along with the other demographic variables, would prevent the author from committing omitted variable bias.
+
+  b. **Which sources of endogeneity are the authors unable to control for?  Explain the implications for your analysis (only work through one such (important) example in detail).  Use the conditions for omitted variable bias and our discussion of the implications of omitted variable bias to discuss whether the particular omitted factor will bias results upward or downward.  If the paper is a RCT, explain a source of bias that the RCT is designed to avoid.**
+
+Given that this is a survey based paper, there are many variables that cannot easily be measured which could potentially be a source of endogeneity. One such variable that comes to mind is the exclusion of veterans as a control variable; specifically being a veteran of the Vietnam War. The Vietnam War occurred in the 1970s, so the young men who fought in the war then and survived would be, at least, at the lower end of the measured age range (60s). 
+
+Since being a veteran increases an individual’s chance of getting injured for life and developing a functional disability, this means that there is a high possibility that the exclusion of this variable is skewing $Gender$, *Age*, *Employment Status* and possibly *Sufficiency of Income* variables in the following ways- 
+
+  * *Gender* - Being a veteran correlates with being male, and being a veteran increased the chances of having more severe functional disability. Excluding the veteran status variable could bias the gender coefficients upwards.
+
+  * *Age* - If we are to assume the average age of a Vietnamese soldier was 23 year [^2] and given that the war ended in 1975 we can estimate that the average age of a Vietnamese war vet would be 68 year old. This means that, much like gender, the coefficient on $Age$ is likely to be overestimated as well. 
+
+  * *Employment Status* & *Sufficiency of Income* - If someone develops a life-long injury at a young age, they are less likely to get and keep consistent work and, therefore, are less likely to to be employed or have enough income to support themselves.[^3] Once again, the exclusion of a veteran variable, points to an artificial inflation of these respective variables. 
+
+But, much like the issues touched on above in the independent variable section, a reliable source of data tracking Vietnamese war veterans doesn't appear to exist and therefore makes measuring this specific variable extremely hard to do.
+
+  c. **Could measurement error cause endogeneity? Explain why or why not.**
+
+Measurement error can cause endogeneity given the self-reported nature of the dataset.
+
+  * Independent Variable Measurement Error: Because the individuals self-reported the severity of their functional disability, it’s unlikely that everyone is following the same standard definition of functional disability. 
+  For example, if we take 2 people with the exact same level of functional disability, Person A might measure their inability to tie their shoes as a minor disability, whereas Person B would consider that inability to be a major functional disability. Because the results are self-reported, Le et al. (2019) cannot control for who underestimated or overestimated the severity of their functional disability. This is often corrected by a large enough sample size.
+  
+  * Dependent Variable Measurement Error: Since the VNAS dataset was gathered through face-to-face interviews there is a possibility of a dependent variable measurement error arising specifically when looking at the *Sufficiency of Income*. The paper doesn't really go into how *Sufficiency of Income* was determined and, therefore some people may measure their sufficiency levels of income incorrectly. Some may technically have sufficient income but may inadvertently report insufficient income, whether it be because they do not want to disclose sensitive information or because they do not realize how sufficient their income is. The same could be said for *Education Level* as well.
+
+4. **Post-treatment: are any of the included variables possibly “post-treatment” variables?**
+
+Yes we do believe that the model includes "post-treatment" variables (specifically mediator bias) given how interrelated *Gender*, *Age*, *Employment Status*, *Education*, and *Sufficiency of Income* are. And this effect is only exacerbated by the statistically significant correlation between those respective variables and *Functional Disability*. 
+
+To detail one of the many examples that can be drawn from the above set of variables, let's talk about *Gender* and *Age*. *Gender* is correlated with *Age*, as women tend to live longer than men. Separately, *Age* is correlated with *Functional Disability* (the older you are the higher the *Functional Disability* score) as is the relationship between *Gender* and *Functional Disability*. Because the model shows that these relationships exist between *Gender*/*Age* and *Functional Disability* we have reason to believe that mediator bias does exist as we're able to surmise a relationship between *Gender* and *Age*.
+
+The same could be said of the relationship between *Gender* and *Education* as we've mentioned previously; *Gender* and *Employment* (women are usually relegrated to household work); *Gender*, *Sufficiency of Income* and *Employment* (women who are relegated to household work are less likely to have money in their name); etc. It is also important to not that this mediator bias appears to also effect the control variables outside of their relationship with Gender which would affect the results in Table 2.
+
+In each of these relationships it is unclear what the individual full effect of the variable is on *Functional Disability* as the inclusion of the secondary variable absorbs the causal effects, taking some of the credit.
+
+5. **What factors affect the precision of the results?** 
+
+As mentioned above, and all throughout this paper, the results of this paper are automatically imprecise given it is survey based. Since humans aren’t mathematical with the measurement of their daily life we will have measurement errors in the independent and dependent variables leading to imprecise results.
+
+  a. **Discuss, as appropriate autocorrelation, heteroscedasticity and multicollinearity and what the authors do (or should do) about them.**
+
+  * Autocorrelation: Since this study did not span multiple periods, there is no autocorrelation error.
+  
+  * Heteroscedasticity: Although the authors themselves do not discuss heteroscedasticity we do believe it would be present in this data. The variances are bound to be different across all observations as the results are user-generated. That is to say we, as humans, all report results in different ways (see the example within the measurement error section). Ideally Le et. al. (2019) should have generated heteroscedasticity-consistant standard errors but given heteroscedasticity does not bias the model, this model is still analyzable. 
+  
+  * Multicollinearity: In order to determine whether to use all variables of interest in the their model (and to determine if multicollinearity was at play) Le et al. (2019) ran a Variance Inflation Factor (VIF) test. The VIF statistic was less than 5, which explains “reasonable independence of explanatory variables.” [3] Therefore, all variables were included in the OLS regression model.
+
+  b. **Is the test statistically powerful?  What are the implications of your answer to this question for how you will interpret your results?**
+
+Le et al. (2019) does not specifically discuss statistical power, but given the fact the sample size is quite large (2693 observations) we have reason to believe this dataset is particularly powerful. This is primarily because as sample sizes get larger, the standard errors typically get smaller. And when we are dealing with smaller standard errors, it decreases the likelihood that we incorrectly fail to reject a false null hypothesis.
+
+Even though the test is still statistically powerful the results will be imprecise and biased due to the measurement error in the independent variables. 
+
+6. **Have the authors considered heterogeneous treatment effects?  (That is, have they considered whether the effect of the key independent variable(s) differs across sub-groups?)  Describe how they do or could address this possibility.**
+
+The author's have considered heterogenous treatment effects by the inclusion of Table 3 in the paper. Specifically: 
+
+> [A] Chow test was performed to determine whether the regression coefficients estimated for men and women were equal (e.g., if differences in the coefficients estimated for men and women was statistically significant, then a null hypothesis that the coefficients estimated for men and women were identical was rejected) (Chow, 1960). Following this, separate linear regression models for men and women were estimated to determine factors
+associated with functional disability in men and women." [3]
+
+Results of this Table show that *Employment Status* is the most statistically significant (at the 99.9% confidence interval) socio-economic factor explaining *Functional Disability* for both women and men. *Age*, *Education*, and *Sufficiency of Income* were still statistically significant for both women and men but varied in the confidence interval based on the gender.
+
+7. **Are the results generalizable?**
+
+The results are not generalizable as the paper neglects non-binary people or people who are gender-fluid within the *Gender* variable; does not include institutionalized or hospitalized senior citizens or senior citizens receiving home care; and the sample size only captures approximately 0.3853% of the senior citizen population in Vietnam.
+
+## Part 2: Discuss a new research design.
+
+1. **What is the analytical question?**
+
+Drawing on the results of the decomposition analysis along with the results of the multivariate OLS model, Le et al. (2019) conclude the three socio-economic factors that are most indicative of *Functional Disability* are *Age*, *Education* and *Employment Status*. Of the three, *Education* is given the most consideration given that: 
+
+> Findings from this study point to a significant role of education in the later life health of women, since if the distribution of education were the same for women as it was for men, gender inequality in functional disability would be reduced by approximately 46 per cent (−0.32 points out of −0.7 points). [6]
+
+The results are fairly astounding and begs the question, why this there this disparity in education for men and women? The author's of this paper surmise a variety of cultural reasons- preference of sons over daughters; women are given more household and agricultural work/work that doesn't depend on academic knowledge; the role of men and women within families, etc. These are all valid reason and, on their own, worthwhile to explore but one explanation that we found lacking was the relationship between education and child marriages (defined as the marriage of any individual below the age of 18). 
+
+Thus our analytical question is the following: Does early marriage inhibit Vietnamese women from completing their education (controlling for region of Vietnam, ethnicity, religion, and child labor)?
+
+There is an already established protective effect of education upon child marriage, being enrolled in school is associated with a 35% lower chance of girls marrying earlier. [^4] The percentage increases to 47% when controlling for a disadvantaged background (i.e. living poverty, living in a rural area, being an ethnic minority, or having a mother with low levels of education). But what these model do not control for is religion and child labor. 
+
+Although Vietnam is officially an athiest country with low levels of organized religion, there are strong roots of Buddhism and Confucianism with the country. And given that both religions are fraught with teaching that continue to re-enforce traditional gender roles [^5], the inclusion of this particular variable is to control for these nebulous cultural teachings that are usually very hard to quantify. 
+
+The inclusion of child labor is a straightforward one: how much of the relationship between child marriage and education is actually due to child labor instead? Conceptually this makes sense when dealing with data that is just looking at men but does this relationship hold as strongly for women as well? 
+
+In order to do this level of analysis we need to draw from a different dataset other than VNAS given that VNAS only dealt with elder Vietnamese. For the purposes of this analytical question we will be drawing data from the Viet Nam Multiple Indicator Cluster Survey (MICS); a collaboration between UNICEF and the Viet Nam General Statistics Office.[^6] MICS surveys measure key indicators, such as child mortality rates, reproductive health, literacy and education measures, amongst others to monitor progress towards the Millenium Development Goals. MICS 2014 is based on a sample of 10,018 women.
+
+  a. **Why is it important to answer this question?**
+
+This question is important because we believe that one of the reasons why women generally have more severe functional disabilities than men do later in their lif, is because of the educational gap. Research shows that higher education is positively correlated with more job opportunities, better wages, better understand of and access to healthier foods, and a higher quality of life overall. [^7] Not to mention gaps in education (through early marriage possibly) tend to accelerate gender inequities in almost every aspect of life, including health. [^8] Therefore, we want to explore the factors that determine whether women have completed primary schooling or not. 
+
+It is important to understand what these interruptions to education are in order to a) correct them for future generations but also b) to help explain the future disparities. Knowing these factors can further explain why the gender gap in education as well as functional disability.
+
+  b. **Write out a statistical model and pay special attention to your subscripts, as these indicate your unit-of-analysis (e.g., individuals at a given point in time, or national data over time or perhaps individual data over time).**
+
+\begin{multline}
+\textit{Completed Education} = \phi(\beta_0 + \beta_1{\textit{Child Marriage}}_i + \beta_2{\textit{Ethnicity}}_i + \beta_3 {\textit{Religion}}_i + \\ 
+\beta_4 {\textit{Region}}_i + \beta_5 {\textit{Child Labor}}_i + \epsilon_i)
+\end{multline}
+
+When referring to "individuals" or "respondents", within this section of the paper, it is implied that we are referring to just women.
+
+*Child Marriage* is a dummy variable that asks whether the respondent was married before 18. 
+
+*Ethnicity*is a dummy variable that asks what ethnic groups (1 - Kinh or Hoa; 0 - Minority ethnic group) the respondent belongs to. 
+
+*Religion* is a categorical variable  (1 - Buddhist; 2 - Muslim; 3 - Cai Dai; 4 - Hao Hao; 5 - Christian Catholic; 6 - Christian Protestant; 7 - Other; 8 - None). 
+
+Similarly, *Region* is another categorical variable (1 - Red River Delta; 2 - Northern Midlands and Mountainous Areas; 3 - North Central and Central coastal area; 4 - Central Highlands; 5 - South East; 6 - Mekong River Delta). 
+
+*Child Labor* is a binary independent variable that is 1 if the respondent was a child laborer or 0 if they were not. 
+
+Another thing we would like to note is that the data for *Child Marriage* and *Child Labor* is not a binary variable as we have stated above. More often than not this data was further categorized in terms of gender, age, region area, mother's education, etc. As such, prior to analysis of the data, we will need to employ some data wrangling skills in order to convert the data for these two variables into binary values.
+
+Note that Φ is the symbol for cumulative density function (CDF), which is part of the standard probit model.
+
+  c. **What is dependent variable?**
+
+The dependent variable is a binary variable called *Completed Education*. This variable takes on the value 1 if the respondent completed their primary schooling, and 0 otherwise.
+
+  d. **What is the key independent variable (or, in some cases, variables)? [Please focus on no more than two independent variables.]**
+  
+Our key independent variable is *Child Marriage* and we have also included the following secondary control variables: *Ethnicity*, *Religion*, *Region*, and *Child Labor*. 
+  
+  e. **What are the null and alternative hypotheses?**
+
+  * $H_0:\beta_{Child\ Marriage} = 0$ There is no difference in the completion of primary schooling between child bride and non-child brides.
+  * $H_a:\beta_{Child\ Marriage} < 0$ Marrying before 18 does negatively affect whether women complete primary schooling.
+
+  f. **Does the model use any specific functional form (e.g., probit, log)? If yes, explain why.** 
+
+This model is a multivariate probit model, primarily because our dependent variable is a binary; we can interpret the fitted probabilities as the probability that women complete their primary education. We opted for a probit model over a LPM for two reasons. One, to ensure that our fitted probabilities will stay legal (between 0 and 1); and two, to ensure it doesn't misleadingly characterize the relationship between the independent variables and the binary dependent variable. 
+
+We also expect a more S-shaped curve rather than a standard linear interpretation given that changed at the lower and upper ends are likely to be fairly similar. The different in educational completion is probably marginally different for women who got married at the ages of 16 and 18, whereas there will be a drastic difference between women who got married at the age of 18 and 26. In order to capture this non-linear relationship in educational attainment we opted to use the probit model.
+
+We also have the additional benefit of interpreting the simulated effect of *Child Marriage* as the average increase in fitted probabilities if the values of *Child Marriage* were to go from 0 to 1. The larger the values of our $\hat{\beta}_1$ are, the larger this difference will be. 
+
+2. **Endogeneity**
+  a. **Which sources of endogeneity would you expect to be able to control for with control variables?**
+
+We have chosen to include the following variables in order to control for endogeneity: *Ethnicity*, *Religion*, *Region*, and *Child Labor*. Although our primary variable of interest is *Child Marriage* we included the other variables to control for any spurious effects, but to also see if these variables had a stronger effect on *Completed Education* than *Child Marriage*. 
+
+As outside research materials tells us there are drastic different in child marriage rates between Kinh girls and ethnic minorities. Ethnic minorities tends to have more and younger child brides that Kinh people do. And, as we've mentioned above, there is already a protective relationship between school enrollment and child marriages. Therefore, *Ethnicity* correlates both with dependent variable *Completed Education* and independent variable *Child Marriage*. Excludng the *Ethnicity* variable, holding all else equal, would cause our model to overestimate the probability of completing primary schooling based on child marriages. We include this control variable, along with the others, in order to ensure we aren't committing omitted variable bias.
+
+  b. **Which sources of endogeneity would you expect to be unable to control for?  Explain the implications for your analysis.  Use the conditions for omitted variable bias and our discussion of the implications of omitted variable bias to discuss whether the particular omitted factor will bias results upward or downward.  If you propose a RCT, explain a source of bias that the RCT will avoid.  (That is, for a RCT paper, explain a source of endogeneity that would occur if a RCT were not used.)**
+
+When talking about endogeneity there are two notes to makes in consideration with this particular dataset: the time period of the MICS dataset, and, once again, the Vietnam War.
+
+The MICS dataset, unlike VNAS, is not specifically about current senior citizens--in fact this dataset mostly surveyed younger Vietnamese populations. How much of our research question can be answered in parallel to the questions about the functional disability of the older populations in Vietnam? Although this isn't exactly endogeneity in it's most classical definition we would still argue that the endogeneity we are talking about here comes from time. The relationship between *Child Marriage* and *Completed Education* is completely different than what that relationship would have looked like 2, 3 decades ago. In this instance we would argue that it's the passage of time that is changing the relationship between women in Vietnam and *Completed Education*. But because of the dataset limitations--we were not able to find a free comprehensive demographic datasets for the 1980s and 1990s to better estimate child marriage rates that--this become an endogenous relationship that we are not able to control for when taking the larger research question into consideration. 
+
+Secondly, and once again, we believe that the effects of the Vietnam War on future populations is one that we cannot control for either in the dataset or in our model. We know that a strong predictor for *Completed Education* is *Child Labor*: children who enter the workforce at a young age are more likely to drop out of school at a younger age. This is especially true of men (and less observed/studied for women which is why we include it in our model). Similar with the issues of time detailed above, we have to reason to believe that the Vietnam War had far reaching implications that continue to affect populations in the current day as it relates to *Child Labor*. 
+
+Poor families that lost their breadwinner due to the war are more likely to rely on child labor post-war. Those children grow up, start their own families and are likely to run into the same problems and limitations that their parents did because ofthe cyclical nature of poverty. Generational poverty gets exacerbated by the effects of war [^9] and can continue to effect families that are far removed from the conflict historically. In this sense it's the war that kept families in poverty, and thus continued the cycle, generationally, of relying on *Child Labor*. If families continue to rely on child labor this is likely to affect the overall rate of *Completeled Education*. As such the Vietnam War, with all of its unmeasureable and directly unobservable effects, continues to be a source of endogeneity that we cannot control. 
+
+  c. **Could measurement error cause endogeneity? Explain why or why not.**
+
+Measurement error can cause endogeneity, once again, given the self-reported nature of the dataset.
+
+  * Dependent Variable Measurement Error: Much like the gathering of the VNAS dataset, MICS was also gathered through face-to-face interviews. As such, there is a possibility of a dependent variable measurement error arising when looking at *Child Marriage*,  and *Child Labor*. Given this has now become, and rightly so, a highly stigmatized and controversial topic some interviewee might hesitate in reporting their actual age of marriage or how much they rely on child labor for daily living expenses. Granted in highly insular communities, much like the ones that would actively participate in child marriage, getting married young wouldn't be as stigmatized. But since Vietnam has a very public stance to reduce child bride rates, as well as the creation of the their "Annual Plan to Minimise Teen Marriage and Consanguineous Marriage in Ethnic Minorities" we have reason to believe that attitude and perceptions might be changing even within these insular communities. And therefore will effect what information a respondent is likely to give the interviewer. 
+
+3. **Post-treatment: are any of the included variables possibly “post-treatment” variables?**
+
+We don't believe that any of the included variable are "post treatment" variables. Although we can surmise a possibility of a relationship between *Region* and *Ethnicity* (ethnic minorities are likely to stay in the same region are other, similar, ethnic minorities) we don't beleive that this is a a strong enough relationship to really be classified as a "post-treatment" variable. The same could be said for the relationship between *Ethnicity* and *Religion*.
+
+One thing we would like to note in our discussion on post-treatment variables is the variables we have chosen not to include, specifically the categorical *Wealth Index*. Although the *Wealth Index* may affect whether women complete their primary school education, including wealth into the model will also affect the independent variable *Child Marriage*. Wealthier people generally do not tend to quickly marry off their daughters and will focus instead on education. Since the *Wealth Index* variable can affect both the independent variable *Child Marriage* (making it a post-treatment variable) and the dependent variable, including the *Wealth Index* variable will cause mediator bias thus we decided to not include it in our model. 
+
+4. **What factors affect the precision of the results?** 
+
+Once again, the results of this paper are automatically imprecise given it is survey based: we will have measurement errors in the dependent variables leading to imprecise results.
+
+  a. **Discuss, as appropriate autocorrelation, heteroscedasticity and multicollinearity and what you would do about them.**
+  
+  * Autocorrelation: Since this particular study (MICS 2014) did not span multiple periods, there is no autocorrelation error.
+  
+    * Heteroscedasticity: Much like the VNAS data, we do believe heteroscedasticity would be present in this data set given that the results are user-reported. Because of this we will run our model correcting for  heteroscedasticity-consistant standard errors.  
+  
+  * Multicollinearity: Because our variables of interest are probably going to be highly correlated with each other we have reason to believe that multicollinearity will be at play in our model. In order to account for this possibility we would run a  Variance Inflation Factor (VIF) test.
+
+  b. **Is the test statistically powerful?  What are the implications of your answer to this question for how you will interpret your results?**
+
+Because the MICS survey consists of the over 10000 female respondents we do believe that our test will be statistically powerful. Given this will be a statistically powerful test, it is unlikely we will be committing a Type II error/failing to reject a false null.
+
+5. **Do you expect the treatment effects to be heterogeneous?  (That is, will the effect of the key independent variable differ across sub-groups?)  Describe how to address this possibility.**
+
+Conceptually thinking through this model, there is a possibility that *Child Marriage* will have heterogenous effects across different sub-groups. Originally we were thinking about adding an interaction variable between *Child Marriage* and *Child Labor* but were unsure about how to interpret such results under a probit model. There is also the consideration to make within *Ethnicity*: the data itself does show us that that child marriage rates are greater in minority ethnicities so this naturally must mean that there is a possible interaction between *Child Marriage* and *Ethnicity* that then effects *Completed Education*.
+
+Alternatively we could take a page from Le et al. (2019) and separate out the model by ethnicities to determine how *Child Marriage* changes within each ethnic group. Of the two options present splitting the results by the binary variable of *Ethnicity* feels a lot more feasible given our current skillsets. 
+
+6. **Are the results generalizable?**
+
+These results are unfortunately not generalizable because, as mentioned above, we weren't able to get a dataset for an older Vietnamese population. Although this information will be good to have for the future generations, it bears no light on the current education gap that present in current senior citizens.  
+
+In an ideal world we would have access to similar historical datasets in order to create generalizable results for the senior citizen population of Vietnam but given our current data limits we have opted to use a more modern but statistically powerful dataset. 
+
+
+[^1]: Arber, S., Fenn, K., & Meadows, R. (2014). *Subjective financial well-being, income and health inequalities in mid and later life in Britain*. Social Science & Medicine, 100, 12–20.
+
+[^2]: “*Vietnam War Facts, Stats and Myths.*” US Wings, https://www.uswings.com/about-us-wings/vietnam-war-facts/. Accessed 4 Dec. 2020.
+
+[^3]: Disability and Employment | United Nations Enable. https://www.un.org/development/desa/disabilities/resources/factsheet-on-persons-with-disabilities/disability-and-employment.html. Accessed 4 Dec. 2020.
+
+[^4]: Young Lives. *Addressing the Risk Factors for  Early Marriage in Viet Nam*. Feb. 2016, https://www.younglives.org.uk/sites/www.younglives.org.uk/files/YL-VIETNAM-PB3_Risk%20factors%20for%20early%20marriage.pdf.
+
+[^5]: *AN 5 33: Uggaha, a Householder*. https://obo.genaud.net/dhamma-vinaya/pts/an/05_fives/an05.033.hare.pts.htm. Accessed 4 Dec. 2020.
+
+[^6]: General Statistics Office and UNICEF, 2015. *Viet Nam Multiple Indicator Cluster Survey 2014*, Final Report. Ha Noi, Viet Nam
+
+[^7]: Hernandez, L. M., & Blazer, D. G. (2006). *Genes, behavior, and the social environment: Moving beyond the nature/nurture debate*. Washington DC: National Academies Press.
+
+[^8]: Ministry of Planning and Investment (2011). *Results of Vietnam Population and Housing Census 2009. Education in Vietnam: An analysis of key factors*. Hanoi: General Statistics
+Office.
+
+[^9]: Rohwerder, B. (2014). *The impact of conflict on poverty*. GSDRC Helpdesk Research Report 1118. Birmingham, UK: GSDRC, University of Birmingham.

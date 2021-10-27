@@ -1,0 +1,163 @@
+---
+title: "Chapter 5 Problem Set"
+author: "Sahithi Adari in collaboration with Madeline Kinnaird"
+date: "10/05/20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Preparation
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+## Load packages used in this session of R
+require(haven) 
+require(knitr)
+require(AER)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+
+```
+
+### Loaded *Ch5_Exercise3_Cell_phone_subscriptions.RData*, *Ch5_Exercise4_Speeding_tickets.RData*, and *CH5_PolicyMemo_WorldValues_subset.RData*.
+
+```{r tidy = FALSE}
+#Loaded the data sets 
+load("Ch5_Exercise4_Speeding_tickets.RData")
+speed <- get(ls()[ls() != "Ch5_Exercise4_Speeding_tickets.RData"])
+
+load("Ch5_Exercise3_Cell_phone_subscriptions.RData")
+
+```
+
+### Problem 3 
+#### (a) While we don't know how many people are using their phones while driving, we can find the number of cell phones subscriptions in a state (in thousands). Estimate a bivariate model with traffic deaths as the dependent variable and number of cell phone subscriptions as the independent variable. Briefly discuss the results. Do you suspect endogeneity? If so, why?
+
+```{r tidy = FALSE}
+#Ran a regression model where "cell_subscription" is the independent variable and "numberofdeaths" is the dependent variable 
+OLS <- lm(numberofdeaths ~ cell_subscription, data = dta)
+
+#Summarized the results 
+summary(OLS)
+
+```
+
+According to the results presented above, the $\hat{B}_0$ value is 0.00124 while the $\hat{B}_1$ value is 0.00911. Our estimated linear regression equation then become $\hat{Y}_i = 0.0124 + 0.0091X_1$. A quick glance tells us that this relationship is statistically significant--although it may not be substantively significant--given that the *t*-value is incredibly high (14.95) and the *p*-value is incredibly low (<2e-16). 
+
+I absolutely suspect endogeneity in the above relationship given that the independent variable here is just simply the total number of cellphone subscriptions per state. In this day and time it is hard to imagine anyone without a cellphone and so, it naturally follows that states with larger cell phone subscriptions (aka large populations) have more traffic accidents. More people on the road, more chances for accidents. 
+
+#### (b) Add population to the model. What happens to the coefficient on cell phone subscriptions? Why? 
+
+```{r tidy = FALSE}
+#Ran a multivariate model including ""population" as a secondary independent variable
+OLS_2 <- lm(numberofdeaths ~ cell_subscription + population, data = dta)
+
+#Summarized the results 
+summary(OLS_2)
+
+```
+
+Unlike the previous model, the coefficient on *cell_subscription* became negative moving from 0.0091 to -0.211. It appears to be that once we control for *population*, the relationship in this model is negatively correlated rather than positively. 
+
+Although the standard errors are still incredibly low (proving that the distribution of our estimates are quite close to the true value) our *t*-value and *p*-value fell considerably showing that the statistically significance of the previous model does not hold. While we can still reject the null at the 95% confidence level, we cannot do so as confidently as before. 
+
+By pulling *population* out of the error term and adding it to the model we show that the positive relationship between *cell_subscription* and *numberofdeaths* was ultimately an endogenous relationship. 
+
+#### (c) Add total miles driven to the model. What happens to the coefficient on cell phone subscriptions? Why?
+
+```{r tidy = FALSE}
+#Ran a multivariate model including "total_miles_driven" as a tertiary independent variable
+OLS_3 <- lm(numberofdeaths ~ cell_subscription + population + total_miles_driven, data = dta)
+
+#Summarized the results 
+summary(OLS_3)
+
+```
+
+Once again the coefficient on *cell_subscription* changes direction from the previous model going from -0.211 to 0.00246. This coefficient is closer in value to the first model although it is not statistically significant at all. If we take a look at just the *t*-value and the *p*-value of *cell_subscription* once again, we can see that whereas in the bivariate model we could have confidently rejected the null at a 95% confidence level, we now, overwhelmingly, will fail to reject the null. 
+
+This is due to the omitted variable bias. Because in the previous models *total_miles_driven* was relegated to the error term, we weren't able to fully understand the true relationship between *cell_subscription* and *numberofdeaths* to the extent that *total_miles_driven* was correlated with *cell_subscription*. 
+
+Also it's important to note that there appears to be a statistically significant relationship between *total_miles_driven* and *numberofdeaths* if we control for *cell_subscription* and *population*. And this makes sense since states where the car is the primary mode of transportation, are more likely to have more cars on the road in total. More cars on the road, means that more accidents will happen. 
+
+Given that *total_miles_driven* "soaks up" the original affects of *cell_subscription* from the first model, I feel confident in stating that *total_miles_driven* is the true predictor of *numberofdeaths* rather than *cell_subscription*. 
+
+#### (d) Based on the model in part (c), calculate the variance inflation factor for population and total miles driven. Why are they different? Discuss implications of this level of multicollinearity for the coefficient estimates and the precision of the coefficient estimates. 
+
+```{r tidy = FALSE}
+#Calculated the VIF for all 3 independent variables in the OLS_3 model 
+vif(OLS_3)
+
+```
+
+The VIF of *population* is 492.8 where as the VIF of *total_miles_driven* is 43.1. The simple answer to their difference is that they had 2 different $R^2_j$ values but conceptually the difference between their two estimates has to do with multicollinearity. 
+
+In plain English, *population* is highly correlated with the other variables whereas *total_miles_driven* is not. We can confirm this by the concept I have outline above: because everyone has a cellphone they are bound to have a cellphone subscription plan, therefore *cell_subscription* is a measure of the population above all else. Multicollinearity is present in our model as we include both *population* and *cell_subscription* variables. 
+
+This is a problem for our model because when variables are strongly related to each other, we introduce more uncertainty to the model. AKA the distributions of $\hat{B}_1$ will be wider (as apparent via our increasing standard errors), it will be harder to to learn from the model, and it will lead to imprecise estimates. We're clouding our model rather that clearing it up.  
+
+I would surmise that removing *population* from the model will provide more precise estimates and remove the effects of multicollinearity given that the *total_miles_driven* seems minimally correlated to *population* as well as *cell_subscription*.
+
+### Problem 4 
+#### (a) Estimate a bivariate model OLS model in which ticket amount is a function of age. Is age statistically significant? Is endogeneity possible? 
+
+```{r tidy = FALSE}
+#Ran a regression model where "Age" is the independent variable and "Amount" is the dependent variable 
+OLS_4 <- lm(Amount ~ Age, data = speed)
+
+#Summarized the results 
+summary(OLS_4)
+
+```
+
+According to the results presented above the $\hat{B}_0$ value is 131.7067 while the $\hat{B}_1$ value is -0.2893. Our estimated linear regression equation then become $\hat{Y}_i = 131.7067 - 0.2893X_1$. A quick glance tells us that this relationship is statistically significant--although it may not be substantively significant--given that the *t*-value is incredibly high (-11.7) and the *p*-value is incredibly low (<2e-16). 
+
+We can confirm our analysis by taking a, short, deep dive into the *t*-value. If we assume a two-sided p test, a 95% confidence interval, and 31672 degrees of freedom, this means our critical value is 1.96. Given that the absolute value of our *t*-value is 11.7 we can reject the null since that value is greater than the critical value. 
+
+Although our relationship is statistically significant, I believe there is a lot of endogeneity in the model. The negative relationship between *Age* and *Amount* can be due to a whole host of reasons: young people are more likely to be reckless and break more laws; there are more young people in America than older people; young black males are more likely to get stopped and fined by the police; there are more young people on the road; etc. 
+
+#### (b) Estimate a model from part (a), also controlling for miles per hour over the speed limit. Explain what happens to the coefficient on age and why. 
+
+```{r tidy = FALSE}
+#Ran a multivariate model including ""MPHover" as a secondary independent variable
+OLS_5 <- lm(Amount ~ Age + MPHover, data = speed)
+
+#Summarized the results 
+summary(OLS_5)
+
+```
+
+If we simply look at the estimated coefficients we can see that this new model became positive moving from -0.2893 to 0.025. There was also a massive jump in the estimates of the intercept going from 131.7067 to 3.4939. 
+
+Once we pulled *MPHover* out of the error term, the statistically significance on *Age* virtually disappeared. In fact given the associated *p*-values and *t*-values for *Age* we would fail to reject the null hypothesis. 
+
+This drastic change in the model is due to the omitted variable bias. Because in the previous model *MPHover* was relegated to the error term, we weren't able to fully understand the true relationship between *Age* and *Amount* to the extent that *MPGover* was correlated with *Age*. 
+
+Once again, much like the previous problem, there appears to be a statistically significant relationship between *MPHover* and *Amount* if we control for *Age*. And this makes sense as this is a dataset specifically looking at traffic stops which are, more often than not, are due to speeding.
+
+By pulling *MPHover* out of the error term and adding it to the model we show that the negative relationship between *Age* and *Amount* was ultimately an endogeneous relationship. 
+
+#### (c) Suppose we had only the first thousand observations in the data set. Estimate the model from part (b), and report on what happens to the standard errors and *t* statistics when we have fewer oberservations. 
+
+```{r tidy = FALSE}
+#Ran the same multivariate model but limited observations to the first 1000
+OLS_6 <- lm(Amount ~ Age + MPHover, data = speed [1:1000,])
+
+#Summarized the results of the estimation
+summary(OLS_6)
+
+
+```
+
+Standard errors: Because we have a smaller sample size (338 observations only) our standard errors have blown up in comparison to the model in part (b). The reasoning for this is quite intuitive once we take the standard error equation into consideration. Given that the number of observations is in the denominator of the formula ($SE = \frac{\sigma}{\sqrt{n}}$), standard errors is in an inverse relationship with the number of observations. 
+
+More observations? Smaller standard errors. Fewer observations? Larger standard errors. Given that we went from 31674 observations to 339, the drastic jump in standard observations make sense. 
+
+*T*-statistics: Hand in hand with the drastic jump of our standard errors, is the explosion in our *t*-values. And this relationship follows the same logic as the one with standard errors. Greater standard errors? Smaller *t*-statistics. Smaller standard errors? Larger *t*-statistics. Once again we can take a look at the formula for the *t*-statistics to see this at play as the standard errors are the denominator in this formula $\frac{\hat{B}_1-B^{Null}}{se(\hat{B}_1)}$. 
+
+Putting this all together, a small sample leads to high standard errors and lowered *t*-values. 

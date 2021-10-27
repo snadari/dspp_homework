@@ -1,0 +1,116 @@
+---
+title: "Policy Memo on the Relationship between Crime Rates and Lead"
+author: "Sahithi Adari"
+date: "10/26/20"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE, message = FALSE, warning = FALSE}
+## Preparation
+require(knitr)
+require(haven)
+require(AER)
+library(jtools)
+
+options(digits = 6)
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+
+```
+
+```{r tidy = FALSE, include = FALSE}
+#Loaded the data sets 
+load("Ch6_PolicyMemo_LeadHomicides.RData")
+
+```
+
+# Question
+Is lead associated with higher homicide rates? 
+
+# Summary
+\textit{Lead} is not a strong predictor for \textit{Homicides per Million}; in fact through the process of controlling for the regions of the country, we discover that regions are a far better predictor for this relationship.
+
+# Background
+Many people are concerned that lead poisoning has negative impacts on health and behavior of people exposed to lead at a young age. We use the dataset from a study done by Feigenbaum and Muller in 2016 on crime and some indicators of lead exposure in U.S. cities from 1921 to 1936 in order to explore this question. We also include \textit{Acidity} and 2 regions of the country into our model in order to create a more precise estimate. 
+
+\textit{Homicides per Million} is quite straightforward; \textit{Lead} is a dummy variable indicating the presence of lead pipes; \textit{Acidity} is a pH based measure of water acidity, scaled so that high values indicate acidic water (range from 0.7 to 7.8); \textit{Lead x Acidity}is an interaction variable of the lead and acidity variable; and \textit{Northeast} and \textit{South} are regional dummy variables. 
+
+# Methods
+We present three models. Our first model is our base model, looking at whether \textit{Homicides per Million} is a function of a dummy variable that indicates the presence of lead pipes, level of acidity in the water, as well as an interaction variable between acidity and lead. We include this last interaction variable as lead leaches (absorbs) into water more readily in acidic water. 
+
+\begin{align}
+\textit{Homcides per Million}_i &= \beta_0 + \beta_1 \mbox{\textit{Lead}}_i +  \beta_2 \mbox{\textit{Acidity}}_i +  \beta_3 \mbox{\textit{Lead}}_i \times \textit{Acidity}_i + \epsilon_i   
+\end{align}
+
+The second model includes an additional dummy variable determining location across the United States. We include this dummy variable as the presence of lead piping in building varies greatly given the region of the country and omitting such a variable could cause bias if lead is correlated with the region of the country. 
+
+The dataset divides the country into the following 4 regions: Northeast (NE), Midwest (MW), South, and West. For the purposes of this policy paper we choose to focus on the 2 oldest regions of the country, the Northeast and South. 
+
+You'll noticed that in the formula we includes the Midwest but our printed results only includes the Northeast and South; this was done in order to make the West our reference category. We ultimately are not looking into the Midwest and, therefore, don't include it in our analysis. 
+
+\begin{multline} 
+\textit{Homcides per Million}_i = \beta_0 + \beta_1 \mbox{\textit{Lead}}_i +  \beta_2 \mbox{\textit{Acidity}}_i +  \beta_3 \mbox{\textit{Lead}}_i \times \textit{Acidity}_i + \\
+\beta_4 \mbox{\textit{Northeast}}_i + \beta_5 \mbox{\textit{Midwest}}_i + \beta_6 \mbox{\textit{South}}_i + \epsilon_i  \end{multline}
+
+Lastly, we hypothesize that any regional effects on \textit{Homicides per Million} will be affected by the presence of lead in the water supply. Perhaps there is a relationship between homicides and regions of the country and the presence of lead only exacerbates this relationship; it could be that the presence of lead leads to more homicides than before. Therefore, we also estimate a model that includes an interaction between the lead dummy and the regions of the country--specifically the South and the Northeast.
+
+\begin{multline}
+\textit{Homcides per Million}_i = \beta_0 + \beta_1 \mbox{\textit{Lead}}_i +  \beta_2 \mbox{\textit{Acidity}}_i +  \beta_3 \mbox{\textit{Lead}}_i \times \textit{Acidity}_i +  \\
+\beta_4 \mbox{\textit{Northeast}}_i +  \beta_5 \mbox{\textit{Midwest}}_i + \beta_6 \mbox{\textit{South}}_i + 
+\beta_7 \mbox{\textit{Lead}}_i \times \textit{Northeast}_i + \beta_8 \mbox{\textit{Lead}}_i \times \textit{Midwest}_i + \\ 
+\beta_9 \mbox{\textit{Lead}}_i \times \textit{South}_i + \epsilon_i  
+\end{multline}
+
+# Findings
+
+```{r tidy = FALSE, include = FALSE}
+#Interaction variables for region against acidity
+dta$NELead <- dta$NE * dta$lead
+dta$MWLead <- dta$MW * dta$lead
+dta$SouthLead <- dta$South * dta$lead
+
+#Three regression models 
+DM.base <- lm(homicide_per_million ~ lead + acidity + Acidity_x_Lead, data = dta)
+DM.region <- lm(homicide_per_million ~ lead + acidity + Acidity_x_Lead + NE + MW + South, data = dta)
+DM.AcidRegion <-  lm(homicide_per_million ~ lead + acidity + Acidity_x_Lead + NE + MW + South + NELead + MWLead + SouthLead, data = dta)
+
+```
+
+```{r message = FALSE, warning = FALSE, echo = FALSE}
+#Exported the results of our regressions models
+export_summs(DM.base, DM.region, DM.AcidRegion, error_format = "SE = {std.error} t = {statistic}",
+             coefs = c("Lead" = "lead",
+                       "Acidity" = "acidity",
+                       "Lead x Acidity" = "Acidity_x_Lead",
+                       "Northeast" = "NE",
+                       "Northeast" = "NE",
+                       "South" = "South", 
+                       "Lead x Northeast" = "NELead",
+                       "Lead x South" = "SouthLead",
+                       "Constant" = "(Intercept)"))
+```
+
+In the first model, the coefficient on \textit{Lead} indicates the homicide rate per million when all other variables are 0. Because the other two variable include \textit{Acidity}, the coefficient on \textit{Lead} indicates the effect of the presence of lead when acidity is 0 (meaning that the water is at a neutral pH level). The coefficient of $-130.09$ with a \textit{t}-statistic of $-6.74$ indicates that there is a significant decrease in the homicide rate per million when the water is drinkable.
+
+The overall effect of the presence of lead is $\hat{\beta}_1 + \hat{\beta}_3 \times \textit{Acidity}$. Although we have already seen that $\hat{\beta}_1$ is fairly significant, the coefficient on $\textit{Lead} \times \textit{Acidity}$, $33.54$, is equally as statistically significant, with a $t$ statistic of $6.62$. For every one-unit increase in \textit{Acidity}, the presence of lead increase the homicide rate by $33.54$. According to this model, drinking water (with a PH of 7 but coded to 0.7 in this scale model) would change the homicide rate per millions by $\hat{\beta}_1 + \hat{\beta}_3 \times 7 = -130.09 + 33.54 \times 0.7 = -106.52$ whereas something more acidic (similar to orange juice) would eventually incraese the homicide rates. 
+
+In our second model we build off of the first model by including a categorical variable of the region. As mentioned above, our formula for Model 2 includes the \textit{Midwest} variable but for our analysis we will solely focus on the Northeastern and Southern regions of the country. This model is better that the first model as it controls for regions of the country. Given that the statistical significance of the coefficients changes considerably from the first model to the second, the results in Model 1 are not robust to controlling for region. 
+
+We see the the coefficient on \textit{Lead} goes to $-35.95$ and loses its strong statistical significance once we control for regions becoming only statistically significant at a confidence level of 95%. The coefficient on $\textit{Lead} \times \textit{Acidity}$ also drops (from $33.54$ to $11.84$) and loses some of its statistical significance. By pulling the regional dummy variables out of the error term we now have a more precise estimate of the the true relationship between \textit{Homicides per Million} and \textit{Lead}. 
+
+According to Model 2, the homicide rate per million for the South is $233.49$ higher than in the West once we control for the other variables. The value is also highly statistically significant (with a \textit{t}-statistic of $41.20$) meaning that the true difference between the homicide rates between the South and the West is not 0. Meanwhile the homicide rate per million for the Northeast is $32.37$ lower than in the West once we control for the other variables. This value is also highly statistically significant with a \textit{t}-statistic of $-6.21$.
+
+\textit{Northeast} and \textit{South} appear to affect the dependent variable and could be correlated with one or more independent variables. Given that \textit{Northeast} and \textit{South} seem to "soak up" the original effect of \textit{Lead} on \textit{Homicides per Million} from the first model, we feel fairly confident in stating that \textit{Northeast} and \textit{South} are far better predictors of \textit{Homicides per Million} than \textit{Lead}. 
+
+In order to really determine if \textit{Northeast} and \textit{South} are better predictors, overall, of \textit{Homicides per Million} rather than \textit{Lead} we make one final facet to our data: interaction variables between the regions of the country and \textit{Lead}.
+
+Similar to the first model, the coefficient on \textit{Lead} indicates the homicide rate per million when all other variables are 0. Given that the other 4 variables now include a mixture of \textit{Acidity} and regions, the coefficient now indicates the effect of the presence of lead when \textit{Acidity} is 0 (aka drinking water) in the West. Here we now get a coefficient of $-41.71$ with a \textit{t}-statistic of $-2.47$ indicating that this relationship is now  semi-statistical-significance  (only at the 95% confidence interval) in the West when the water is drinkable. 
+
+Another interesting thing to note is that the standard errors of this model goes up from the previous model rather than down. Model 2 gave us standard errors of $14.41$ for the coefficient of \textit{Lead} whereas the standard errors on Model 3, for the same coefficient, increased to $16.64$. If anything the addition of the regional interaction variable made the model less precise.    
+
+The overall effect of the presence of lead depending on the region now is $\hat{\beta}_1 + \hat{\beta}_7 \times \textit{Northeast}$, $\hat{\beta}_1 + \hat{\beta}_9/ \times \textit{South}$. Although we have already seen that $\hat{\beta}_1$ is semi-significant, the coefficient on \textit{Lead} $\times$ \textit{Northeast}, $5.46$, as well as the coefficient on \textit{Lead} $\times$ \textit{South}, $-20.58$, is highly insignificant. This seems to only further bolster the idea that \textit{Lead} is not a good predictor for \textit{Homicides per Million}. 
+
+The best model, and the model that we base our final conclusion on, is Model 2 given that Model 3 had decidedly shown that the presence of \textit{Lead} seems to have an imprecise effect on the data. Our analysis shows that the region of the country not \textit{Lead} is a stronger predictors for \textit{Homicides per Million}. 

@@ -1,0 +1,256 @@
+---
+title: "Problem Set 1"
+author: "Sahithi Adari in collaboration with Merykokeb Belay"
+date: "9/4/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Preparation
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+# On first use packages must be installed.
+# Example: install.packages("haven") 
+
+# Load packages used in this session of R
+library(knitr)
+library(car)
+library(haven)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+  ## As needed, set path to folder where data is located.
+  ## For example: opts_knit$set(root.dir ="C:/Data")
+```
+
+#### Loading the data set *Ch2_Exercise2_Olympics.RData* and *Ch2_Exercise3_Height_and_Wages_US.RData*
+
+```{r tidy = FALSE}
+#Loaded both RData file and assigned a unique name to the file in order to make referencing easier 
+load(file= "Ch2_Exercise2_Olympics.RData")
+olym <- get(ls()[ls() != "Ch2_Exercise2_Olympics.RData"])
+rm (dta)
+
+load(file= "Ch2_Exercise3_Height_and_Wages_US.RData")
+haw <- get(ls()[ls() != "Ch2_Exercise2_Olympics.RData"])
+rm(dta)
+```
+
+### Problem 2
+#### 1) Summarize the medals, athletes, and GDP data. 
+
+```{r tidy = FALSE}
+# Summary of medals 
+summary(olym$medals)
+```
+
+```{r tidy = FALSE}
+# Summary of athletes 
+summary(olym$athletes)
+```
+
+```{r tidy = FALSE}
+# Summary of GDP data 
+summary(olym$GDP)
+```
+
+#### 2) List the first five observations for the country, year, medals, athletes, and GDP data.
+
+```{r tidy = FALSE}
+#List of first five observation for the country column
+olym$country[1:5]
+```
+
+```{r tidy = FALSE}
+#List of first five observation for the year column
+olym$year[1:5]
+```
+
+```{r tidy = FALSE}
+#List of first five observation for the medals column
+olym$medals[1:5]
+```
+
+```{r tidy = FALSE}
+#List of first five observation for the athletes column
+olym$athletes[1:5]
+```
+
+```{r tidy = FALSE}
+#List of first five observation for the GDP column
+olym$GDP[1:5]
+```
+
+#### 3) How many observations are there for each year?
+
+```{r}
+#Total observations for each year
+table(olym$year)
+```
+
+#### 4) Produce a scatterplot of medals and the number of athletes. Describe the relationship depicted.
+
+```{r}
+#General scatterplot of athletes to medals 
+plot(olym$athletes, olym$medals,
+     main="Athletes to Medals", 
+     xlab="Athletes", 
+     ylab="Medals",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+```
+
+As the scatterplot above shows, there seems to be an incredibly weak correlation between the number of athletes representing a country and the number of medals won. This weak correlation is especially evident in countries with more than 50 athletes though this correlation might also exists in countries with less than 50 athletes. The current density of data points at the below 50 athletes "level" makes it hard to determine. 
+
+I also believe that this question, along with the other below questions, would really benefit from removing all the countries that didn't medal from the data set. All of those data points are heavily skewing the trend downwards and may not paint an accurate picture of the correlations that may indicate success at the Winter Olympics. 
+
+#### 5) Explain any suspicion you might have that other factors might explain the observed relationship between the number of athletes and medals.
+
+I believe there is a lot of endogeneity in the relationship between the number of athletes and medals. If you take a deeper look at the data you notice that even at the above 50 athletes "level", there is an incredible amount of spread.  Take a look at the countries with a 100 athletes representing: the number of medals won ranges from 1 all the way to 25. While this positive correlation does appear to exist it is quite lacking when looking at the specific numbers. 
+
+Given the fact that larger delegations are more likely to come from countries with both a) a large population, b) a high GDP and c) colder temperatures, I'm more inclined to believe that those are the reasons for this perceived correlation more than anything else. Countries with resources to spend and an environment to train are more likely indicators for success in the Winter Olympics.  
+
+#### 6) Create a scatterplot of medals and GDP. Briefly describe any clear patterns.
+
+```{r}
+#General scatterplot of GDP to medals and included the "jitter" function to make the plot more useful 
+plot(jitter(olym$GDP, 10), jitter(olym$medals, 10),
+     main="GDP to Medals", 
+     xlab="GDP (per capital GDP in $10,000)", 
+     ylab="Medals",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+```
+
+There seems to be little to no correlations between GDP and winning medals. As I've stated before my assumption was that the higher the GDP, the greater the chance for medals. While this data doesn't support that specific notion I still do believe that the combination of all three factors is a good indicator for success. 
+
+Another thing I would like to note with this particular graph is how incomplete the actual data set is. If we look at the summary statistics in the earlier question (question #1) you can see that there is about 156 NAs which translate to about 13% of the data missing.
+
+As I've mentioned above I think this data set shouldn't include any countries that didn't medal. 
+
+#### 7)  Create a scatterplot of medals and population. Briefly describe any clear patterns.
+```{r}
+#General scatterplot of population to medals and included the "jitter" function to make the plot more useful 
+plot(jitter(olym$population, 10), jitter(olym$medals, 10),
+     main="Population to Medals", 
+     xlab="Population (in 100,000)", 
+     ylab="Medals",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+```
+
+Simply put there exists no relationship between the population of a country and the number of medals won. Countries on both ends of the spectrum seem to be getting medals as well as not getting medals. There is no overlying trend that arises. 
+
+
+#### 8) Create a scatterplot of medals and temperature. Briefly describe any clear patterns.
+
+```{r}
+#General scatterplot of temperature to medals  
+plot(olym$temp, olym$medals,
+     main="Temperature to Medals", 
+     xlab="Temperature Average (in farenheit)", 
+     ylab="Medals",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+```
+
+At first glance there seems to be a correlations between countries that average around 20 - 40 degrees in January/July and the number of medals. But I believe there are 3 different things about this graph that does not support that particular correlation. 
+
+1) The same average temperature is used across all 10 observations per country. Rather than gathering the actual different temperature averages every 4 years, by using the same number, the data places too much weight on temperature as being an indicators for success or not. Granted the average January/July temperature should not change all too much across 34 year for each country. But just by looking at this data, we can be falsely lead to believe that there is, in fact, a range of ideal temperatures to ensure medaling in the Winter Olympics. 
+
+There are also questions of how the researchers determined this singular average, how the data takes into consideration a warmer/colder than usual winter, etc. 
+
+2) The number of countries who aren't participating. While I did mention previously that the data should remove countries that didn't place, I think a more important point to make here is to remove the countries that didn't participate at all. A large majority of the zeros in the above 50 degrees section are of countries that didn't participate at all! It might be dumb to state this but the data will be more informative and interesting if it only includes participating countries rather than all possible countries.
+
+3) Especially with the Winter Olympics, I beleive that the environment of a country plays a huge deal of importance in the indication of success. If you don't have snow- how are people of a specific country supposed to train for these sports? Assuming that tropical countries are somehow able to qualify for a winter sporting event (a high enough barrier as is) where do they train? How are they going to simulate the conditions needed for snow when they live in the equator? 
+
+Ultimately because of the 3 above points I believe that there is no correlation present between average temperature and success in the Winter Olympics. 
+
+
+### Problem 3
+#### 1) Summarize the wage, height (both height85 and height81), and sibling variables. Discuss briefly.
+```{r tidy = FALSE}
+# Summary of wages 
+summary(haw$wage96)
+```
+
+The hourly wage of $1533 does not make any sense. Because, if we're to take that at face value that means someone was making roughly $2 million a year. 
+
+
+```{r tidy = FALSE}
+# Summary of height (height81) 
+summary(haw$height81)
+
+# Summary of height (height85) 
+summary(haw$height85)
+```
+
+Given that the data here only has a difference of 4 years it is surprising to see such a huge gap of NAs from 1981 to 1985. What happened to create such a disparity in data? 
+
+
+```{r tidy = FALSE}
+# Summary of siblings
+summary(haw$siblings)
+```
+
+There are many suspect things about this particular set of observations. How does one have -3 siblings? How does one have 29 siblings? 
+
+#### 2) Create a scatterplot of wages and adult height (height85). Discuss any distinctive observations.
+
+```{r}
+# General scatterplot of adult heights to wages and included the "jitter" function to make the plot more useful 
+plot(jitter(haw$height85, 10), jitter(haw$wage96, 10),
+     main="Adult Height to Wages", 
+     xlab="Adult Height (inches)", 
+     ylab="Wages",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+```
+
+As is to be expcted, the majority of males heights is between 65 - 70 inches with most wages at the under $500 range. Due to 3 major outliers (at roughly $700 and $1533) we're not able to get a clear picture of any trends or observations at the below $500 level. These 3 outliers are skewing the data as well as the scatterplot. A more interesting scatterplot arises once we remove these three points. 
+
+#### 3) Create a scatterplot of wages and adult height that excludes the observations with wages above $500 per hour.
+
+```{r}
+# Regard wages above $500 as data errors 
+haw$wage96[haw$wage96 > 500] <- NA
+
+# New scatterplot with wages above $500 as data errors
+plot(jitter(haw$height85, 10), jitter(haw$wage96, 10),
+     main="Adult Height to Wages", 
+     xlab="Adult Height (inches)", 
+     ylab="Wages",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+```
+
+#### 4) Create a scatterplot of adult height against adolescent height. Identify the set of observations where people’s adolescent height is more than their adult height. Do you think we should use these observations in any future analysis we conduct with this data? Why or why not?
+
+```{r}
+# Scatterplot of adolecent height to adult height and included the "jitter" function to make the plot more useful 
+plot(jitter(haw$height81, 10), jitter(haw$height85, 10),
+     main="Adolescent Height to Adult Height", 
+     xlab="Adolescent Height (inches)", 
+     ylab="Adult Height (inches)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+# Removing NAs from the haw data frame 
+haw2 <- na.omit(haw) 
+
+# Listing observations where the adolescent height is greater than adult height 
+haw2 [haw2$height81 > haw2$height85, ]
+```
+
+I believe we should use the observations where the adolescent height is greater than the adult height if that difference is within one inch (maybe even two). One inch feels like a reasonable range of error for measuring height especially given that daily height have been proven to change depending on the day (you are taller right when you wake up, and shorter in the night). Not only that, but maybe the person being measured was slouching or was cheating and standing on their tippy-toes as a kid? Also this tiny disparity in height can also be a data entry issue. It's an easy enough mistake to make and one that doesn't really get corrected as our brains are trained to look out for large issues rather than minor ones.
+
+A difference of one to two inches feels negligible to me as the difference isn't that vast and can still be used to gather pertinent information. If that difference is greater than 2 inches then there seems to be larger issues at play affecting that height difference. Those results can and should be removed from a longitudinal study as the purpose of the study is to gather generic information about a population and not individual-specific information. 
+

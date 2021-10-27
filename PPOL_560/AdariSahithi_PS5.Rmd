@@ -1,0 +1,314 @@
+---
+title: "Chapter 6 Problem Set"
+author: "Sahithi Adari in collaboration with Gloria Li, Vince Egalla, Matt Ring"
+date: "10/22/20"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+## Preparation
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+require(knitr)
+require(haven)
+require(car)
+require(AER)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+
+```
+
+```{r message = FALSE, include = FALSE}
+# Remove objects from the previous session
+rm(list = ls(all = TRUE))  
+
+```
+
+### Loaded *Ch6_Exercise2_FederalReserve.RData*, and *Ch6_Exercise4_Speeding_tickets.RData*.
+```{r}
+#Loaded Ch6_Exercise2_FederalReserve.RData as 'fed'
+load("Ch6_Exercise2_FederalReserve.RData")
+fed <- get(ls()[ls() != "Ch5_Exercise4_Speeding_tickets.RData"])
+
+#Loaded Ch6_Exercise4_Speeding_tickets.RData as 'dta' 
+load("Ch6_Exercise4_Speeding_tickets.RData")
+
+```
+
+### Problem 2 
+#### (a) Create two scatterplots, one for years in which a Democrat was president and one for years in which a Republican was president, showing the relationship between FFR and the quarter since the previous election. Comment on the difference in the relationships. The variable *Quarters* is coded 0 to 15, representing each quarter from one election to the next. For each presidential term, the value of *Quarters* is 0 i nthe first quarter containing the election and 15 i nthe quarter before the election.  
+
+```{r tidy = FALSE}
+#Filtered the data to only include Democrats and saved this as a new dataframe
+DemOnly <- fed[fed$Democrat == 1,]
+
+#Filtered the data to only include Republicans and saved this as a new dataframe
+RepbOnly <- fed[fed$Democrat == 0,]
+
+#Created a scatterplot of the 'Quarters' to 'FFR' for Democrats only and jittered the data to make the plot more useful 
+plot(jitter(DemOnly$Quarters,10), jitter(DemOnly$FEDFUNDS, 10),
+     main = "Quarters Since the Previous Election vs FFR (Democrat)",
+     xlab = "Quarters Since the Previous Election", 
+     ylab = "Effective Federal Funds Rate (percentage)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+
+```
+
+```{r}
+#Created a scatterplot of the 'Quarters' to FFR for Republicans only and jittered the data to make the plot more useful
+plot(jitter(RepbOnly$Quarters, 10), jitter(RepbOnly$FEDFUNDS, 10),
+     main = "Quarters Since the Previous Election vs FFR (Republican)",
+     xlab = "Quarters Since the Previous Election", 
+     ylab = "Effective Federal Funds Rate (percentage)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+```
+
+One of the biggest and, most obvious, differences between the 2 models is that the years with a Democratic president seems to have a relatively stable FFR ranging from 0% - 5%, whereas the spread during a Republican President was anywhere from 0% - 10%. Another difference is in the fact that FFR percentages seem to spike later in the administration for Democrats whereas that spike happens early in the administration for Republicans. The FFR percentages seem to have a negative relationship with *Quarters* for Republicans but this relationship doesn't seem to be particularly strong. 
+
+Another important note to make is the difference in total number of observations between the 2 datasets: the Democrat only dataset includes 88 observations whereas the Republican only dataset includes 144 observations. 
+
+#### (b) Create an interaction variable between *Quarters* and *Democrat* to test whether closeness to elections has the same effect on Democrats and Republicans. Run a model with the FFR as the dependent variable, allowing the effect of the *Quarters* variable to vary by party of the president.  
+
+```{r tidy = FALSE}
+#Created an interaction variable between 'Quarters' and 'Democrat'
+fed$DemQuarter <- fed$Democrat * fed$Quarters
+
+#Ran a multivariate model between 'Quarters' and 'FFR' including the interaction variable we created above
+OLS <- lm(FEDFUNDS ~ Quarters + Democrat + DemQuarter, data = fed)
+
+#Summarized the results of the model
+summary(OLS)
+
+```
+
+##### (i) What changes in FFR is associated with a one-unit increase in the *Quarters* variable when the president is a Republicans?  
+
+When the president is a Republican a one-unit increase in the *Quarters* variables with result in a -0.2649 change in FFR percentages. We can interpret this to mean that as a Republican administration goes on, the FFR rate is likely to decrease over time. 
+
+##### (ii) What changes in FFR is associated with a one-unit increase in the *Quarters* variable when the president is a Democrat? 
+
+When the president is a Democrat a one-unit increase in the *Quarters* variables with result in a 0.2933 change in FFR percentages. We can interpret this to mean that as a Democratic administrations goes on, the FFR rate is likely to increase over time. 
+
+#### (c) Is the effect of *Quarters* statistically significant under Republicans? (Easy.) Is the effect of *Quarters* statistically significant under Democrats? (Not so easy.) How can the answer be determined. Run any additional test if necessay. 
+
+Since Republicans are the 0th value in the dummy variable of Democrats, we would simply need to look toward the $\hat{\beta}_1$ coefficient (in our model, *Quarters*) in order to determine statistical significance. According to the OLS model we ran above, the effects of *Quarters* is statistically significant under Republicans. 
+
+This OLS model tells us that the *p*-value is 1.1e-05 which is well below any alpha level we can choose, and the absolute value of the *t*-value is high enough (-4.51) to make me believe that this data is statistically significant no matter the confidence interval. 
+
+In order to determine the statistical significance of Democrats we would need to run a separate regression model between the 2 variables looking at Democrats-only data. Given that we have already done this in an earlier questions, we can use that dataset to determine the statistical significance of *Quarters* under Democrats.
+
+```{r tidy = FALSE}
+#Ran a regression model between 'Quarters' and 'FFR' for Democrats only
+OLS_2 <- lm(FEDFUNDS ~ Quarters, data = DemOnly)
+
+#Summarized the results of the model
+summary(OLS_2)
+
+```
+
+According to this new linear regression model, the effects of *Quarters* is also statistically significant under Democrats. The *p*-value here is the same as the Republicans (1.5e-05) and the absolute value of the *t*-value is high enough (4.53) to make me believe that this data is statistically significant no matter the confidence interval. 
+
+We can double check to make sure we used the right regression model by comparing the coefficient found in the Democrats-only dataset with the coefficient on the multivariate model including the interaction variable. In the interaction model we had to use $\hat{\beta}_1 + \hat{\beta}_3$ to give us the coefficient on Democrats. There we got a value of 0.2933 whereas this regression model gives us 0.293. Since these 2 numbers are the same we're confident in moving forward with the analysis provided in the Democrats-only dataset. 
+
+#### (d) Graph two fitted lines for the relationship between *Quarters* and interest rates, one for Republicans and one for Democrats. (In Strata use the **twoway** and **lfit** commands with appropriate if statements; label by hand. In R, use the **abline** command.) Briefly describe the relationship. 
+
+```{r tidy = FALSE}
+#Plotted 'FEDFUNDS' against 'Quarters' for Democrats
+plot(jitter(fed[fed$Democrat == 1,]$Quarters, 10), jitter(fed[fed$Democrat == 1,]$FEDFUNDS, 10),  
+     main="Quarters Since the Previous Election vs FFR",
+     xlab = "Quarters Since the Previous Election", 
+     ylab = "Effective Federal Funds Rate (percentage)", 
+     xlim = c(0,21),
+     ylim = c(0,20),
+     col = 'blue',
+     pch = 8)
+
+#Allows us to plot another graph on top of the first one
+par(new = TRUE) 
+
+#Plotted 'FEDFUNDS' against 'Quarters' for Republicans
+plot(jitter(fed[fed$Democrat == 0,]$Quarters, 10), jitter(fed[fed$Democrat == 0,]$FEDFUNDS, 10),
+     main="Quarters Since the Previous Election vs FFR",
+     xlab = "Quarters Since the Previous Election", 
+     ylab = "Effective Federal Funds Rate (percentage)", 
+     xlim = c(0,21),
+     ylim = c(0,20),
+     col = 'red',
+     pch = 16)
+
+#Graphed a fitted line for Democrats and colored that line blue 
+abline(lm(FEDFUNDS ~ Quarters, data = DemOnly),
+       col = 'blue')
+
+#Graphed a fitted line for Republicans and colored that line red 
+abline(lm(FEDFUNDS ~ Quarters, data = RepbOnly),
+       col = 'red')
+
+#Set the legend at the bottom of the graph
+legend("bottomright",
+       c('Democrats', 'Republicans'),
+       pch=c(8,16),
+       col=c('blue', 'red'),
+       cex = 0.8)
+
+```
+
+As we've discussed above in our various models, the relationship between *Quarters* and *FEDFUNDS* for Republicans is a negatively sloping relationship whereas the relationship between *Quarters* and *FEDFUNDS* for Democrats is a positively sloping relationship. Both fitted lines appear to intersected at the 9 quarters mark which is roughly at the halfway point of a 4 year administration. 
+
+The same constraints to the data (i.e. the difference in observations between the two parties) still hold and there are still questions of exogeneity within the model. 
+
+#### (e) Rerun the model from part (b) controlling for both the interest rate in the previous quarter (*lag_FEDFUND*) and inflation *b* and discuss the results, focusing on (i) effects of *Quarters* for Republicans, (ii) the differential effect of *Quarters* on Democrats, (iii) impact of lagged FFR, and (iv) inflation. Simply report the statistical significance of the coefficient eestimates; don't go through the entire analysis for part (c).
+
+
+We can control for *lag_FEDFUNDS* and *inflation* by pulling them out of the error term and including them in our model as multiple independent variables. By doing this we can generate a much clearer model on the true relationship between *Quarters* and *FEDFUNDS* depending on the party affliation of the the president. Similar to part (b) we can do this by running 2 different models: one including the interaction variable, *lag_FEDFUNDS* and *inflation* to determine if there is a the statistical significance effect on Quarters under Republicans; and a secondary linear regression model including  *lag_FEDFUNDS* and *inflation* on the Democrats-only dataset in order to determine if there is a the statistical significance effect on Quarters under Democrats. 
+
+We can start with the model that includes the interaction variable. 
+
+```{r}
+#Ran a multivariate model between 'Quarters' and 'FFR' including an interaction variable
+OLS_3 <- lm(FEDFUNDS ~ Quarters + Democrat + DemQuarter + lag_FEDFUNDS + inflation, data = fed)
+
+#Summarized the results of the model
+summary(OLS_3)
+
+```
+
+According to this model the effects of *Quarters* is not statistically significant under Republican once we control for *lag_FEDFUNDS* and *inflation*. Our *t*-value drops from -4.51 to -1.37 where as our *p*-value goes from  1.1e-05 to 0.17.
+
+This goes to show that once we pulled *lag_FEDFUNDS* and *inflation* out of the error term and adding it to the model, the negative relationship between *Quarters* and *FEDFUNDS* was ultimately an endogenous relationship. 
+
+We will now run the secondary multivariate regression model excluding the interaction variable and using the Democrats-only dataset to determine if pulling  *lag_FEDFUNDS* and *inflation* out of the error term has a similar effect on the data for Democrats as well. 
+
+```{r tidy = FALSE}
+#Ran a regression model between 'Quarters' and 'FFR' for Democrats only including multiple independent variables
+OLS_4 <- lm(FEDFUNDS ~ Quarters + lag_FEDFUNDS + inflation, data = DemOnly)
+
+#Summarized the results of the model
+summary(OLS_4)
+
+```
+
+As our models shows here as well, the effects of *Quarters* is not statistically significant under Democrats once we control for *lag_FEDFUNDS* and *inflation*. Our *t*-value drops from 4.58 to 1.13 where as our *p*-value goes from  1.1e-05 to 0.26.
+
+Given that *lag_FEDFUNDS* is the interest rate in the previous quarter (i.e. pulling for the same dataset as *FEDFUNDS*), it seems more likely that the true predictor of *FEDFUNDS* is *inflation* rather than *Quarters* irregardless of presidential party affiliation. 
+
+### Problem 4 
+#### (a) Implement a simple differnce of means test that uses OLS to assess whether the fines for men and women are different. Do we have any reason to expect endogeneity? Explain. 
+
+```{r}
+#Ran a difference of means test looking at 'Female' vs 'Amount'
+DM <- lm(Amount ~ Female, data = dta)
+
+#Ran a coeftest to allow for variance to differ across the two groups 
+coeftest(DM, vcov = vcovHC(DM, type = "HC1"))
+
+```
+
+According to the model above there is a difference between the fines for men and women. Men, on average, receive a fine of \$124.67 where as women, on average, receive a fine of \$116.73. 
+
+I absolutely expect endogeneity in the model given the fact that race plays such a huge factor in who gets pulled over and who gets fined. I have reason to believe that black and hispanic men are more like to be pulled over and fined at a higher rates than, say, white men or even white women. More than any other variable here I do believe that race plays sn incredibly large role in this particular relationship. 
+
+By exluding race I believe this model is committing omitted variable bias since race plays such a strong role in who gets pulled over and by what frequency. 
+
+I think, in terms of the gender divide specifically, mens are more likely to be speeding and therefore more likely to be pulled over. There are questions about the ages of the dataset as young people are likely to be distracted drivers compared to older drivers. 
+
+#### (b) Implement a difference of means test for men and women that controls for age and miles per hour. Do we have reason to expect endogeneity? Explain.   
+
+```{r}
+#Ran a difference of means test looking at 'Female' vs 'Amount' including multiple independent variables
+DM_2 <- lm(Amount ~ MPHover + Age + Female, data = dta)
+
+#Ran a coeftest to allow for variance to differ across the three groups
+coeftest(DM_2, vcov = vcovHC(DM_2, type = "HC1"))
+
+```
+
+Althought the inclusion of both *Age* and *MPHover* does give evidence to the idea that the relationship between *Amount* and *Female* was an endogenous one I still believe there is endogenity within this model. As I've mentioned before, and will continue to keep mentioning, the exclusion of race is a massive one and, will probably, explain a lot of the supposed relationships taking place here. 
+
+I have reason to believe that race and gender does play a difference in how people get fined by the police. 
+
+#### (c) Building from the model just described, also assess whether fines are higher for African-Americans and Hispanics compared to everyone else (non-Hispanic, whites, Asians and others). Explain what the coefficient on those variables mean.
+
+```{r tidy = FALSE}
+#Ran a difference of means test looking at 'Female' vs 'Amount' including multiple independent variables
+DM_3 <- lm(Amount ~ Female + Black + Hispanic + Age + MPHover , data = dta)
+
+#Ran a coeftest to allow for variance to differ across the groups
+coeftest(DM_3, vcov = vcovHC(DM_3, type = "HC1"))
+
+```
+
+According to this model, controlling for both *MPHover* and *Age*, fines for African American men averaged around \$2.82 whereas fines for African American women averaged around -\$0.72. Fines for Hispanic men averaged around \$6.78 whereas fines for Hispanic women averaged around \$3.24.  
+
+Fine for non-Hispanic and non-African American men averaged around \$4.85 while fines for non-Hispanic and non-African American women averaged \$1.31. 
+
+This model shows us that fines are lower for African-Americans and higher for Hispanics irregardless of gender. Another intresting aspect of this model is the fact that *Female* and *MPHover* are better predictors for amount of fines rather than race. The *MPHover* aspect does make sense given that people who are speeding are more likely to be fined but gender being statistically significant was a surprising revelation. 
+
+Because the numbers on this model really confused me, I added a secondary model of just analyzing the *Female*, *Black*, and *Hispanic* variables excluding *Age* and *MPHover*. 
+
+```{r}
+#Ran a difference of means test looking at 'Female' vs 'Amount' including multiple independent variables
+DM_4 <- lm(Amount ~ Female + Black + Hispanic, data = dta)
+
+#Ran a coeftest to allow for variance to differ across the groups
+coeftest(DM_4, vcov = vcovHC(DM_4, type = "HC1"))
+
+```
+
+Given this is a multivariate model with multiple dummy independent variables interpreting this model is a bit different than normal. In this model the $\hat{\beta}_0$ is the average fines for men of all other races whereas the $\hat{\beta}_1$, $\hat{\beta}_2$, and $\hat{\beta}_3$ are how much more or less the fine is compared men of other races depending on gender and race.
+
+According to this model, all else being equal, men of other races (non-Hispanics, Whites, Asians, and others) received an average fine of \$123.96. Women of other races received an average fine of \$116.28. 
+
+African-American men, on average, received fines that are \$5.62 greater than men of other races for a total average fine of \$129.58. African-American women, over average, received fines that are \$5.62 greater than women of other races for a total average fine of \$121.9. 
+
+Hispanic men, on average, received fines that are \$7.07 greater than men of other races for a total average fine of \$131.03. Hispanic women, over average, received fines that are \$7.07 greater than women of other races for a total average fine of \$123.35.
+
+Unlike the previous model, this model tells us that fines are higher, across the board, for African-Americans and Hispanics. 
+ 
+#### (d) Look at the standard errors on coefficients for *Female*, *Black*, and *Hispanic* variables. Why are they different? 
+
+The standard errors on the coefficient for *Female*, *Black*, and *Hispanic* variables are different due to heteroskedasticity. Although there is a formula to follow in terms of how fast a person is driving, the report from Makowsky and Stratmann states that "police officers in practice often deviate from the formula". Given that fines are being assessed in a situational way rather than in a formulaic manner, the variance will differ within the same category. 
+Because the variance differs within these groups, the standard errors on the coefficients will differ as well. 
+
+#### (e) Within a single OLS mode, assess whether miles over the speed limit has a differential effect on the fines for women, African-Americans, and Hispanics. 
+
+```{r tidy = FALSE}
+#Created an interaction variable between 'MPHover' and 'Female'
+dta$FemMPH <- dta$Female * dta$MPHover
+
+#Created an interaction variable between 'MPHover' and 'Black'
+dta$BlackMPH <- dta$Black * dta$MPHover
+
+#Created an interaction variable between 'MPHover' and 'Hispanic'
+dta$HispanicMPH <- dta$Hispanic * dta$MPHover
+
+#Ran a multivariate model between 'MPHover' and 'Amounts' including the interaction variables we created above
+DM_5 <- lm(Amount ~ MPHover + Female + Black + Hispanic + FemMPH + BlackMPH + HispanicMPH, data = dta)
+
+#Ran a coeftest to allow for the variance to differ across the groups 
+coeftest(DM_5, vcov = vcovHC(DM_5, type = "HC1"))
+
+```
+
+Miles over the speed limit does have a differential effect on the fines assigned for women, African-Americans, and Hispanics. 
+
+According to this model, all else being equal, fines for non African-Americans, and non-Hispanics men begin at an average of \$3.37 if the diver is not speeding. For every one mile per hour increase over the speed limit, the fine increases by a value of \$7.06. 
+
+For women, fine begin at an average of \$12.34 if the driver is not speeding with an increase of \$6.32 for every one mile per hour increase over the speed limit. 
+
+Fines for African-American men begin at average of -\$3.93 if the driver is not speeding with an increase of \$7.32 for every one mile per hour increase over the speed limit. 
+
+Fines for Hispanic men begin at average of -\$9.25 if the driver is not speeding with an increase of \$7.83 for every one mile per hour increase over the speed limit. 
+
+Fines for African-American women begin at an average of /$4.93 if the driver is not speeding with an increase of \$6.58 for every one mile per hour increase over the speed limit. 
+
+Fines for Hispanic women begin at an average of -/$0.28 if the driver is not speeding with an increase of \$7.09 for ever one mile per hour increase over the speed limit. 

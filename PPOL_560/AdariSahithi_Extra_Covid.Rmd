@@ -1,0 +1,179 @@
+---
+title: "Chapter 7 Covid"
+author: "Sahithi Adari"
+date: "11/11/20"
+output:
+  html_document
+---
+
+## Preparation
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+# Load packages used in this session of R
+library(knitr)
+library(dplyr)
+library(ggplot2)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 5)
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+
+```
+
+#### 1) Load the data from Covid_by_state_week.rds
+The data is from https://covidtracking.com/data.  It contains weekly state level information related to the covid pandemic.  The variables in our data set are
+
+- state: state abbreviation
+
+- friday: date
+
+- deaths: number of covid deaths in state in that week (the `d' is for difference)
+
+- positives: number of positive covid tests reported in state in that week
+
+- negatives: number of negative covid tests reported in state in that week
+
+
+```{r tidy = FALSE}
+df = readRDS("Covid_by_state_week.rds")
+
+```
+
+#### 2)  Create a function that displays the total number of cases for a given state. Report the output of this function for two states.
+```{r tidy = FALSE}
+#Function that takes an input of a state code and outputs the total number of cases 
+State_cases = function(usa_state){
+  df %>%
+    group_by(state) %>%
+    filter(state == usa_state) %>%
+    filter(friday == "2020-10-16") %>%
+    pull(positives)
+}
+
+```
+
+```{r tidy = FALSE}
+#Total number of cases for California
+State_cases("CA")
+
+```
+
+```{r tidy = FALSE}
+#Total number of cases for North Carolina
+State_cases("NC")
+
+```
+
+#### 3)  Use a function and a loop to create 3 variables: 1 week lag, 2 week lag and 3 week lag of positives.
+
+```{r tidy = FALSE}
+#Created a new dataframe in order to make changes to the original dataset
+df_lagged <- df[with (df, order(friday)), ]
+
+#Created 3 new columns for our lagged data
+df_lagged$Lag1 <- NA
+df_lagged$Lag2 <- NA
+df_lagged$Lag3 <- NA
+
+#Created a function that would input a state and date, and output the number of cases
+State_date = function(usa_state, date) {
+  answer <- df_lagged %>%
+    group_by(state) %>%
+    filter(state == usa_state) %>%
+    filter(friday == date) %>%
+    pull(positives)
+  
+  if (length(answer) == 0){ #If a date or a state with no cases is inputted return 0
+    answer <- 0
+  }
+  return (answer)
+}
+
+#Created a vector of day lengths
+days <- c(7, 14, 21)
+
+#Created a vector of values that will be used to index the dataframe
+columns <- c(6,7,8)
+
+```
+
+```{r tidy = FALSE}
+#Created a for loop that will go through the entire dataset and output the lagged values
+for (x in 1:1470) {
+  for (y in 1:3) {
+    state_name <- df_lagged[x,1] 
+    current_date <- df_lagged[x,2] 
+    lag_date <- df_lagged[x,2] - days[y] 
+    df_lagged[x,columns[y]] <- State_date(state_name, lag_date)
+  }
+}
+
+```
+
+
+#### 4)  Use a list to run and store results from the following quadratic model: $Y = \beta_0 + \beta_1Lag3 + \beta_2Lag3^2$.  (Note we are *only* using lag3 here.)  Show summary results for a state of your choosing using list notation.
+```{r tidy = FALSE}
+
+#Created a vector of unique state
+unique_states <- unique(c(df_lagged$state))
+
+#Created a variable that squared the 'Lag3' value
+df_lagged$Lag3_squared <- (df_lagged$Lag3)^2
+
+#Used lapply to store state-specific regression results
+#Created a function that would pass through the 'unique_states' list to calculate a state-specific model
+state_regression <- lapply(unique_states, function(unique_states){ 
+  lm(deaths ~ Lag3 + Lag3_squared, data = df_lagged, subset = (df_lagged$state == unique_states))
+} )
+
+```
+
+```{r tidy = FALSE}
+#Quadratic regression model for North Carolina
+summary(state_regression[[27]])
+
+```
+
+
+#### 5)  Plot the fitted values for two states of your choosing using the list of regression results from part (4). Do this by first creating a function and then calling the function for each of the two states you are interested in.
+
+```{r tidy = FALSE}
+#Created a vector of numbers
+numbers <- c(1:49)
+
+#Created a dataframe merging the 'numbers' vector and the 'unique_states' vector
+df_codes <- data.frame(digits = numbers, state = unique_states)
+
+#Created a function that would take the regressions from the list and plot it on a state-by-state basis
+Plot_states <- function(state_1, full_state){
+
+#Because 'state_regression' can only pull the regression by numeric value, using the above dataframe we can convert a state into a numerical value that can then be passed into 'state_regression'    
+  code <- df_codes$digits[df_codes$state == state_1] 
+  lm_function <- state_regression[[code]]
+  
+  ggplot(lm_function$model, aes_string(x = names(lm_function$model)[2], y = names(lm_function$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", formula = y ~ x + I(x^2), col = "red") + #Identified the quadratic model via "formula"
+  xlab("Cases Lagged by 3 Weeks") +  
+  ylab("Weekly Deaths") +  
+  labs(caption = paste("Adj R2 = ",signif(summary(lm_function)$adj.r.squared, 5),
+                     "Intercept =",signif(lm_function$coef[[1]],5 ),
+                     " P =",signif(summary(lm_function)$coef[2,4], 5)),
+       title = (paste0('Lagged COVID Cases by Deaths for ', full_state))
+       )
+}
+
+```
+
+```{r tidy = FALSE}
+#Plotted the regression for California
+Plot_states("CA", "California")
+```
+
+```{r tidy = FALSE}
+#Plotted the regression for North Carolina
+Plot_states("NC", "North Carolina")
+```

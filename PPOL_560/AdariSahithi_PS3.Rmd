@@ -1,0 +1,317 @@
+---
+title: "Chapter 4 Problem Set"
+author: Sahithi Adari in collaboration with Gloria Li, Madeline Kinnaird, Vince Egalla, Merykokeb Belay, Matthew Ring
+date: 09/27/20
+output:
+  html_document: default
+---
+
+## Preparation
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+require(knitr)
+require(haven)
+require(car)
+library(readxl)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+
+```
+
+```{r message = FALSE, include = FALSE}
+# Remove objects from the previous session
+rm(list = ls(all = TRUE))  
+```
+
+#### Loading the dataset *Ch4_Exercise3_Presidents_and_Economy.RData* and *Ch4_Exercise5_Height_and_Wages_UK.dta*.
+
+```{r tidy = FALSE}
+#Loaded both datasets 
+load(file= "Ch4_Exercise3_Presidents_and_Economy.RData")
+
+haw <- read_dta("Ch4_Exercise5_Height_and_Wages_UK.dta")
+
+```
+
+### Problem 3 
+#### (a) Estimate a model with *Unemployment* as the dependent variable and *LagDemPres* as the independent variable. Interpret the coefficients. 
+
+```{r}
+#Ran a regression model where LagDemPres is the independent variable and Unemployment is the dependent variable 
+results1 <- lm(Unemployment ~ LagDemPresident, data = dta)
+
+#Summarized the results of the estimation
+summary(results1)
+
+```
+
+According to the results presented above the $\hat{B}_0$ value is 6.236 while the $\hat{B}_1$ value is -0.955. Our estimated linear regression equation then become $\hat{Y}_i = 6.236 - 0.955X_1$. 
+
+The standard errors for both coefficients are fairly low meaning that the spread of the distribution is fairly narrow and that the estimated values are close to the true values. The intercept here (at 6.236) is the average unemployment rate during a Republican presidency. 
+
+In order to make a decision on the whether this data is statistically significant we need to look at the *t*-value of LogDemPresident and make a couple of assumptions. If we assume a two-sided p test, an $\alpha = 0.05$ and 65 degrees of freedom, this means our critical value is 1.9971. Given that the absolute value of our *t*-value of 2.46 is greater than the critical value, we reject the null.
+
+Lastly we take a look at the *p*-value as another measure to determine if the relationship is or isn't statistically significant. In our case the *p*-value for LogDemPresident is 0.016 which means that we would reject the null since that *p*-value is less than $\alpha = 0.05$. Therefore this relationship is statistically significant. 
+
+#### (b) Estimate a model when *ChangeGDPpc* as the dependent variable and *LagDemPres* as the independent variable. Interpret the coefficients. Explain why the sample size differs from the first model. 
+
+```{r, echo=FALSE}
+#Ran a regression model where LagDemPres is the independent variable and ChangeGDPpc is the dependent variable 
+results2 <- lm(ChangeGDPpc ~ LagDemPresident, data = dta)
+
+#Summarized the results of the estimation
+summary(results2)
+
+```
+
+According to the results presented above the $\hat{B}_0$ value is 481 while the $\hat{B}_1$ value is 220. Our estimated linear regression equation then become $\hat{Y}_i = 481 + 220X_1$. 
+
+Unlike the previous model the standard errors for both coefficients are large meaning that the spread of the distribution, for both values, are wide and the estimated values are not close to the true values. 
+
+ If we assume a two-sided p test, an $\alpha = 0.05$ and 50 degrees of freedom, this means our critical value is 2.0086. Since our *t*-value of 1.34 is not greater than the critical value, we fail to reject the null. Lastly, taking a look at the *p*-value, we can confidently fail to reject the null since our *p*-value is is greater than $\alpha = 0.05$ and $\alpha = 0.10$.
+
+For this model I am very confident in stating that this relationship is not statistically significant and that there doesn't exist a relationship between LagDemPresident and ChangeGDPpc. 
+
+The sample size differs from the first model because there are "15 observations that are deleted due to missingness". If we take a look at the data we can see that we are missing the values for first 15 values for ChangeGDPpc.
+
+#### (c) Choose an $\alpha$ level and an alternative hypothesis and indicate for each model above whether you accept or reject the null hypothesis. 
+
+See above; in both instances, by assuming a two-sided p test, my alternative hypothesis is $H_a:B_0 \neq 0$.
+
+#### (d) Explain in your own words what the *p* value means for *LogDemPres* variable in each model. 
+
+To go into further detail than what is above, the *p* value is calculated by finding the likelihood of getting a *t* statistic larger in magnitude than is observed under the null hypothesis. If we take a look at the second model this mean that there is a 0.09 probability that the *t* statistic will be larger than 1.34. 
+
+The p-value offers us another insight on whether to reject or fail to reject the null but, more importantly, it tells us the strength of this assertion. 
+
+#### (e) Create a power curve for the model with *ChangeGDPpc* as the dependent variable for $\alpha = 0.01$ and a one-sided alternative hypothesis. Explain what the power curve means by indicating what the curve means for true $B_1$ = 200, 400, and 800. Use the code in the Computing Corner but with the actual standard error of $\hat{B}_1$ from the regression output.
+
+```{r}
+#Made a sequence of true betas 
+TrueBeta <- seq(0, 800, 4)  
+se       <- sqrt(vcov(results2)[2, 2])  
+
+#Calculated power 
+power_1 <- pnorm(TrueBeta/se - 2.32)
+
+#Plotted the power curve for the model where *ChangeGDPpc* is the dependent variable
+plot(TrueBeta, power_1, 
+     main="Power Curve",
+     xlab = "True Value of the Change in Real per Capita GDP", 
+     ylab = "Probability reject null", 
+     type = "l", 
+     col = 4, 
+     lty=2)
+abline(v = 200, col = 1, lty = 2)
+abline(v = 400, col = 1, lty = 2)
+abline(v = 800, col = 1, lty = 2)
+legend("bottomright", 
+       c(expression(paste(alpha, " = 0.01"))),
+       lty = c(2), 
+       col = c(4), 
+       cex = 0.8)
+
+```
+
+To speak plainly and in terms of what the power curve is telling us is, the true value of 200 we can see that the probability of rejecting the null is roughly 15% given our current model and standard errors. At a true value of 400 the probability rises to 50% and at 800 the probability is 100%.
+
+On the flip side this also means that we have a decreasing probability of failing to reject the null. Or, in other terms, committing a Type 2 Error. At a true value of 200 the probability of committing a Type 2 error is at roughly 85% with our estimated model, roughly 50% at a true value of 400, and 0% at a true value of 800. 
+
+#### (f) Discuss the implications of the power curve for the interpretation of the results for the model in which *ChangeGDPpc* was the dependent variable. 
+
+The power curve characterizes the probability of rejecting the null for a range of possible values of the the parameter of interest (in our case the true value of *ChangeGDPpc*). To translate that to our set of circumstances, as the true value of *ChangeGDPpc* moves away from 0, the greater the likelihood that we will reject the null given a one-sided t-test and an $\alpha = 0.01$. 
+
+Our model predicts a $\hat{B}_1$ of 220. According to the above power curve, we have about a 15% chance of rejecting the null and an 85% of failing to reject the null (or committing a Type 2 error) according to our model assuming that 220 is the true value. 
+
+### Problem 4
+#### (a) Generate *t* statistics for the coefficient on education for each simulation. What are the minimual and maximal values of these *t* statistics? 
+
+```{r}
+#Simulation of the salary equation provided in Chapter 3  
+Obs 	= 100		
+Reps	= 50		
+TrueBeta0	= 12000	
+TrueBeta1	= 1000		
+SD 	= 10000		
+Ed 	= 16 * runif(Obs)	
+
+#Created a matrix to store our results 
+CoefMatrix	= matrix(NA, Reps, 4)
+colnames(CoefMatrix) <- c("Intercept", "Education", "T-Stat", "P-Value")
+
+# Looped the estimate as assigned the results to the CoefMatrix  
+for (ii in 1:Reps) {			
+Salary 	= TrueBeta0+ TrueBeta1* Ed + SD*rnorm(Obs) 
+OLS.result <- lm(Salary ~ Ed)	
+CoefMatrix[ii,1] <- summary(OLS.result)$coefficients[1,1] 
+CoefMatrix[ii,2] <- summary(OLS.result)$coefficients[2,1]
+CoefMatrix[ii,3] <- summary(OLS.result)$coefficients[2,3]
+CoefMatrix[ii,4] <- summary(OLS.result)$coefficients[2,4]
+}
+
+```
+
+```{r}
+#Minimum values of the tstat matrix 
+min(CoefMatrix[,"T-Stat"])
+
+#Maximum values of the tstat matrix 
+max(CoefMatrix[,"T-Stat"])
+
+```
+
+In the simulations I generated, the minimum *t*-statistic across our 50 simulations is 2.97 whereas the maximum *t*-statistic across our 50 simulations is 7.01.
+
+#### (b) Generate two-sided *p* values for the coefficient on education for each simulation. What are the minimal and maximal values of these *p* values?
+
+```{r}
+#Minimum values of the tstat matrix 
+min(CoefMatrix[,"P-Value"])
+
+#Maximum values of the tstat matrix 
+max(CoefMatrix[,"P-Value"])	
+
+```
+
+In the simulations I generated, the minimum *p*-value across our 50 simulations is 0.00000000223 whereas the maximum *p*-value across our 50 simulations is 0.0149.
+
+#### (c) In what percent of the simulations do we reject the null hypothesis that $B_education = 0$ at the $\alpha = 0.05$ level with a two-sided alternative hypothesis?
+
+```{r}
+#Created a new matrix with just p-values 
+pstat	<- matrix(NA, Reps, 1)
+pstat[,1] <- CoefMatrix[,"P-Value"]
+
+#Created a new matrix with just t-statistics 
+tstat	<- matrix(NA, Reps, 1)
+tstat[,1] <- CoefMatrix[,"T-Stat"]
+
+#Counted the number of p-values below our alpha
+count <- sum(pstat < 0.05)
+perc_reject = (count/nrow(pstat))*100
+perc_reject
+
+#Counted the number of t-statistics greater than our critical value
+count <- sum(abs(tstat) > (qt(1-0.05/2,48)))
+perc_reject_2 = (count/nrow(tstat))*100
+perc_reject_2
+
+```
+
+Given that our true value is set at 1000, it makes sense that 100% of our simulation would reject the null hypothesis. 
+
+#### (d) Re-run the simulations but set the true value of $B_education$ to zero. Do this for 500 simulations, and report what percent of time we reject the null at the $\alpha = 0.05$ with a two-sided alternative hypothesis. The code provided in Chapter 3 provides tips on how to do this. 
+
+```{r}
+#Simulation where ${B}_1$ = 0
+Obs 	= 100		
+Reps	= 500		
+TrueBeta0	= 12000	
+TrueBeta1	= 0		
+SD 	= 10000		
+Ed 	= 16 * runif(Obs)	
+
+CoefMatrix_2	<- matrix(NA, Reps, 4)
+colnames(CoefMatrix_2) <- c("Intercept", "Education", "T-Stat", "P-Value")
+
+for (ii in 1:Reps) {			
+Salary 	= TrueBeta0 + TrueBeta1* Ed + SD*rnorm(Obs) 
+OLS.result_2 <- lm(Salary ~ Ed)				# Run a regression using simulated values of Y
+CoefMatrix_2[ii,1] <- summary(OLS.result_2)$coefficients[1,1]
+CoefMatrix_2[ii,2] <- summary(OLS.result_2)$coefficients[2,1]
+CoefMatrix_2[ii,3] <- summary(OLS.result_2)$coefficients[2,3]
+CoefMatrix_2[ii,4] <- summary(OLS.result_2)$coefficients[2,4]
+}
+
+pstat_2	<- matrix(NA, Reps, 1)
+pstat_2[,1] <- CoefMatrix_2[,"P-Value"]
+
+tstat_2	<- matrix(NA, Reps, 1)
+tstat_2[,1] <- CoefMatrix_2[,"T-Stat"]
+
+
+count <- sum(pstat_2 < 0.05)
+pstat2_reject = (count/nrow(pstat_2))*100
+pstat2_reject
+
+count <- sum(abs(tstat_2) > (qt(1-0.05/2,498)))
+tstat2_reject = (count/nrow(tstat_2))*100
+tstat2_reject
+
+```
+
+We would reject the null 6% of the time given this new simulation at $\alpha = 0.05$ with a two-sided alternative hypothesis. 
+
+### Problem 5
+#### (a) Estimate the model with income at age 33 as the dependent variable and height at age 33 as the independent variable. (Exclude observations with wages above £400 per hour and heights less than 40 inches.) Interpret the *t* statistics on the coefficients.  
+
+```{r tidy = FALSE}
+#Created a new dataframe where wages above 400 and heights below 40 inches are excluded 
+haw2 <- subset(haw, gwage33 <= 400 & height33 >= 40)
+
+#Ran a regression model where height is the independent variable and wages is the dependent variable 
+results3 <- lm(gwage33 ~ height33, data = haw2)
+
+#Summarized the results of the estimation
+summary(results3)
+
+```
+
+The coefficient *t*-value is a measure of how many standard deviations the coefficient estimate is away from 0. In order to reject the null hypothesis the further away these values are, the better. In our example the *t*-value on the constant is close to zero, (-1.86) and depending on what type of test we use (two-sided, one-sided) as well as what significance level, we would either reject the null or fail to accept the null. 
+
+For example, if we assume a two-sided p test along 3667 degrees of freedom and an $\alpha = 0.05$ we get a critical value of 1.96. Seeing as the absolute value of the constant (1.86) is not greater than the critical value, we can fail to reject the null.
+
+Meanwhile the *t*-value on height is relatively far away from zero (3.72), and are large relative to the standard errors (0.072) meaning that a relationship could exist.
+
+If we take the same conditions as above, we would reject the null for height as 3.72 is most definitely greater than the critical value and, therefore, we can reject the null. 
+
+#### (b) Explain the *p* values for the two estimated coefficients. 
+
+The *p*-value relates to the probability of observing any value equal or larger than *t*. The lower the *p*-value, the less consistent the estimated $\hat{B}_1$ is with the null hypothesis. In other words, a small *p*-value usually indicates that it's unlikely we will observation a relationship between the independent variable and dependent variable due to chance. 
+
+The *p*-value is used, along with a significance level to determine, the weight of the evidence against a null hypothesis. In our case our two respective *p*-values are 0.0626 for the wages and 0.0002 for height. For height that number is so small that we can confidently reject the null. But for wages we would reject the null for an $\alpha = 0.1$ but we would fail to reject for $\alpha = 0.05$. 
+
+#### (c) Show how to calcuate the 95% confidence interval for the coefficient on height. 
+
+```{r tidy = FALSE}
+#Calculated the 95% confidence interval for results3
+confint(results3, level = 0.95)
+
+```
+
+We can calculate the confidence interval in one of two way: using R, or using a formula. As shown above we can use R and the confint function to have a R calculate both the upper and lower confidence limits for each parameter. 
+
+If we were to use math we would use the following equation to calculate the 95% confidence interval: $\hat{B}_1 \pm 1.96 * se(\hat{B}_1)$. In our case this would translate to  $0.268 \pm 1.96*0.072$ and, also, gives us the range of 0.127 - 0.409. 
+
+#### (d) Do we accept or reject the null hypothesis that $B_1 = 0$ for $\alpha = 0.01$ and a two sided alternative? Explain your answer. 
+
+In order to make a decision on whether we reject or fail to reject the null hypothesis that $B_1 = 0$ we need to take a look at the *t*-value and *p*-value of results3, and determine what the critical value is for 3667 degrees of freedom, at $\alpha = 0.01$, and a two-sided p test.
+
+The critical value,in this case, is 2.5772. Since the absolute value of our *t*-statistic on height is 3.72 we would reject the null hypothesis since 3.72 is greater than 2.5772. Our *p*-value of 0.0002 supports our conclusion as 0.0002 is less than the  $\alpha = 0.01$. Not only are we rejecting the null but we are decisively rejecting the null. 
+
+#### (e) Do we accept or reject the null hypothesis that $B_0 = 0$ (the constant) for $\alpha = 0.01$ and a two sided alternative? Explain your answer.  
+
+In order to make a decision on whether we reject or fail to reject the null hypothesis that $B_0 = 0$ we need to take a look at the *t*-value and *p*-value of results3, and determine what the critical value is for 3667 degrees of freedom, at $\alpha = 0.01$, and a two-sided test.
+
+The critical value,in this case, is 2.5772. Since the absolute value of our *t*-statistic on wages is 1.86 we would fail to reject the null hypothesis since 1.86 is less than 2.5772. Our *p*-value of 0.0626 supports our conclusion as 0.0626 is not less than the  $\alpha = 0.01$. Not only are we failing to reject the null but we are decisively failing to rejecting the null.
+
+#### (f) Limit the sample size to the first 800 observations. Do we accept or reject the null hypothesis that $B_1 = 0$ for $\alpha = 0.01$ and a two sided alternative? Explain if/how/why this answer differs from the earlier hypothesis test about $B_1 = 0$. 
+
+```{r tidy = FALSE}
+#Ran a regression model, subsetting for the first 800 observations 
+results4 <- lm(gwage33 ~ height33, data = haw2 [1:800,])
+
+#Summarized the results of the estimation 
+summary(results4)
+
+```
+
+Once we limit the sample size to the first 800 oberservations, we fail to reject the null. To support our assertion we go through the same process as before: we take a look at the *t*-value and the *p*-values. 
+
+First off our degrees of freedom have changed meaning that we will now generate a new critical value; our new critical value is 2.582. Since the absolute value of our *t*-statistic on height is 2.08 we would fail to reject the null hypothesis since 2.08 is less than 2.582. Our *p*-value of 0.038 supports our conclusion as 0.038 is not less than the  $\alpha = 0.01$. Not only are we failing to reject the null but we are fairly decisively failing to rejecting the null.
+
+The reason for this change has to do with our lowered sample size. Since we moved from a model with 3669 oberservation to a model with just 800 observations, our standard errors on $\hat{B}_1$ increased as well. In fact our standard errors almost nearly doubled from 0.072 to 0.131. Because our standard errors nearly doubled this had a direct bearing on our *t*-values as well. Our *t*-value decreased between the two models meaning that we're more likely to fail to reject rather than outright reject, in a two-sided p test, for a substantively trivial change in our $\hat{B}_1$ estimates (0.268 to 0.272). 
+
+In essence while the model at 3669 observations was statistically significant, it is not substantively significant. 
+

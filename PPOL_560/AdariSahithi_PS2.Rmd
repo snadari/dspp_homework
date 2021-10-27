@@ -1,0 +1,374 @@
+---
+title: "Problem Set #2"
+author: Sahithi Adari in collaboration with Gloria Li
+date: '09/13/20'
+output:
+  html_document: default
+  
+---
+## Preparation
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+require(knitr)
+require(haven)
+require(AER)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+
+```
+
+```{r message = FALSE, include = FALSE}
+ # Removed objects from the previous session
+rm(list = ls(all = TRUE))  
+
+```
+
+#### Loading the data set *Ch3_Exercise3_Height_and_Wages_UK.RData*, *Ch3_Exercise4_Divorce_rates_Men.RData*, *Ch3_Exercise4_Divorce_rates_Women.RData*, *Ch3_Exercise5_Tax_rates_Men.RData*, and *Ch3_Exercise5_Tax_rates_Women.RData*
+
+```{r tidy = FALSE}
+# Loaded all 5 RData files
+load(file= "Ch3_Exercise3_Height_and_Wages_UK.RData")
+
+load(file= "Ch3_Exercise4_Divorce_rates_Men.RData")
+
+load(file= "Ch3_Exercise4_Divorce_rates_Women.RData")
+
+load(file= "Ch3_Exercise5_Tax_rates_Men.RData")
+
+load(file= "Ch3_Exercise5_Tax_rates_Women.RData")
+
+```
+
+### Problem 3
+#### (a)	Estimate a model where height at age 33 estimates income at age 33. Explain $\hat{B}_0$, and $\hat{B}_1$.
+
+```{r tidy = FALSE}
+# Ran a regression model where height is the independent variable and income is the dependent variable 
+results1 <- lm(gwage33 ~ height33, data = dta)
+
+# Summarized the results of the estimation
+summary(results1)
+
+```
+
+According to the results presented above the $\hat{B}_0$ value is -6.599 while the $\hat{B}_1$ value is 0.245. Our estimated linear regression equation then become $\hat{Y}_i = -6.599 + 0.245X_1$. 
+
+According to this model on average, at a height of 0 inches, a person will make -£6.599 per hour. This hourly wage increases by a value of £0.245 per inch. A person will finally break even at 26.9 inches (2.2 feet) and will make minimum wage (in the UK) at 57.55 inches (4.79 feet). 
+
+Given the absurdity of a height of 0 inches, I believe that this model would benefit from having a minimum height of 54 inches (4.5 feet). 
+
+#### (b) Create a scatterplot of height and income and age 33. Identify any outliers. 
+
+```{r tidy = FALSE}
+# Created a scatterplot of the height to income data 
+plot(dta$height33, dta$gwage33, 
+     main = "Relationship between Height and Hourly Wage",
+     xlab = "Height at Age 33 (inches)", 
+     ylab = "Hourly Wage at Age 33 (£)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+```
+There are wage outliers and height outliers present in this scatterplot. First there are 4 wage outliers: 3 at the £500 level and one up at the £2500 level. I find it slightly unlikely that these levels of hourly wages exist but, either way, these 4 data points are possibly skewing the regression model upwards. 
+
+Second there are quiet a number of people who are shorter than 40 inches especially around the 30 inches range. Adult dwarfism can explain those points but the average height for an adult dwarf is 4 feet tall not 2.5 feet. 
+
+Based on the above points I feel confident in removing those points from any future models. 
+
+#### (c) Create a scatterplot of height and income at age 33, but exclude observations and wages per hour more than £400 and heights less than 40 inches. Describe the difference from the earlier plot. Which plot seems the most reasonable basis for statistical analysis? Why? 
+
+```{r tidy = FALSE}
+# Created a new dataframe where wages above 400 and heights below 40 inches are excluded 
+dta2 <- subset(dta, gwage33 <= 400 & height33 >= 40)
+
+# New scatterplot with wages above 400 pounds and heights below 40 inches excluded; added the jitter function to make the plot more useful 
+plot(jitter(dta2$height33, 10), jitter(dta2$gwage33, 10),
+     main="Updated Relationship between Height and Hourly Wage", 
+     xlab="Height at Age 33 (inches)", 
+     ylab="Hourly Wage at Age 33 (£)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+```
+
+One of the biggest differences between the previous scatterplot and this one is how much more clearer the possible relationship between height and wages is. Due to the outlandish nature of the outliers in the previous scatterplot, the potential relationship between these two variables wasn't entirely clear to see. 
+
+Although this scatterplot present the data in a visually more easy-to-understand and aesthetic way, I actually don't think there will be that much of a difference between the 2 data sets in terms of statistical analysis. There are 3696 observations in the original data set and we've only removed 29 observations for this data set. What we know about outliers tells us that given such a large data set, removing a few data points (29 in this case) will do little to changing the regression model.
+
+#### (d) Reestimate the bivariate OLS model from part (a), but exclude four outliers with very high wages and outliers with height below 40 inches. Briefly compare resutls to earlier results. 
+
+```{r tidy = FALSE}
+# Ran a new regression model with the wage and height outliers excluded 
+results2 <- lm(gwage33 ~ height33, data = dta2)
+
+# Summarized the results of the estimation
+summary(results2)
+
+```
+
+First off the $\hat{B}_0$ value changes from -6.599 to -9.346 and the $\hat{B}_1$ value changes from  0.245 to 0.268. Our new estimated linear regression equation then becomes $\hat{Y}_i = -9.346 + 0.268X_1$.
+
+This new model finds that, on average, at a height of 40 inches people can be expected to make £1.37 per hour whereas the previous model stated that, at that height, people can be expected to make £3.201 per hour. 
+
+Although the majority of this model has not changed ($\hat{B}_1$, standard errors, t-values etc.) given the large disparity between both $\hat{B}_0$ values I feel more confident in using this model versus the previous one as it excludes outliers. 
+
+#### (e) What happens when the sample size is smaller? To answer this question reestimate the bivariate OLS model from above (that exlcudes outliers), but limit the analysis to the fist 800 observations. Which changes more from the results with the full sample: the estimated coefficients on height or the estimated standard error of the coeffiecent on height? Explain.
+```{r tidy = FALSE}
+# Ran a regression model, subsetting for the first 800 observations 
+results3 <- lm(gwage33 ~ height33, data = dta2 [1:800,])
+
+# Summarized the results of the estimation 
+summary(results3)
+
+```
+
+Once again the most obvious difference in this model vs the full model seems to come from the intercept rather than the estimated coefficients on height. But to answer the question directly the estimated coefficients on height had a "bigger" difference. 
+
+All the standard error estimate tells us is the average amount our coefficients estimates vary from the actual average values. When both standard error estimates (0.176 for the full data set and 0.131 for the new data set) are close to zero, this means that both models have fairly narrow distributions. The first model already had a very narrow distribution, getting an estimate that is even more narrower doesn't really provide any new information for us.  
+
+Therefore while there was only minor differences in the estimated coefficients of height (from 0.245 to 0.272) this change is considered to be "bigger" than the difference between the estimated standard errors of the coefficient on height. 
+
+### Problem 4
+#### (a) For each data set (for women and for men), create a scatterplot of hours worked on the y-axis and divorce rates on the x-axis. 
+
+```{r tidy = FALSE}
+# Scatterplot of the relationship of hours worked to divorce rate for women 
+plot(Wdata$divorcerate, Wdata$hours,
+     main="Relationship Between Hours Worked and Divorce Rates (Women)", 
+     xlab="Divorce Rate per Thousand", 
+     ylab="Average Yearly Labor (in hours)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+
+```
+
+```{r tidy = FALSE}
+# Scatterplot of the relationship of hours worked to divorce rate for men 
+plot(Mdata$divorcerate, Mdata$hours,
+     main="Relationship Between Hours Worked and Divorce Rates (Men)", 
+     xlab="Divorce Rate per Thousand", 
+     ylab="Average Yearly Labor (in hours)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+
+```
+
+#### b) For each data set, estimate an OLS regression in which hours worked is regressed on divorce rates. Report the estimate regession equations and interpret the coefficients. Explain any difference in coefficients. 
+
+```{r tidy = FALSE}
+# Ran a regression model where divorce rate is the independent variable and hours worked is the dependent variable for women
+results4 <- lm(hours ~ divorcerate, data = Wdata)
+
+# Summarized the results of the estimation
+summary(results4)
+
+```
+
+The estimated regression equation is  \[ ŷ_i= 601.9 + 48.3x_i\]. What the two coefficients tell us is that if a country has a divorce rate of 0% per thousand, women in that country are likely to work an average of 601.9 hours per year. For every percent increase of the divorce rate per thousand, the average yearly labor increases by 48.3 hours. 
+
+
+```{r tidy = FALSE}
+# Ran a regression model where divorce rate is the independent variable and hours worked is the dependent variable for men  
+results5 <- lm(hours ~ divorcerate, data = Mdata)
+
+# Summarized the results of the estimation
+summary(results5)
+
+```
+
+The estimated regression equation is \[ ŷ_i= 1410.6 + 1.8x_i\]. What the two coefficients tell us is that if a country has a divorce rate of 0% per thousand, men in that country are likely to work an average of 1410.6 hours per year. For every percent increase of the divorce rate per thousand, the average yearly labor increases by 1.8 hours. 
+
+The difference in the two estimates by gender makes sense as there appears to be a positive correlation between the divorce rate for the country and average yearly labor for women and men.
+
+Although those correlations appear to be stronger for women and really weak for men, I believe that there is a lot of endogeneity within this particular relationship. 
+
+The biggest cause for pause here being that the sample size only includes 18 countries, and all of these countries are considered to be a part of the "Western World". The majority, if not all, of these countries are culturally and societally open in that divorce isn't seen as a taboo and they care about the upward mobility of women. Perhaps it is a combination of both of these values that are allowing for this positive correlation. India comes to mind as a country in which divorce is seen as taboo and yet there is a growing working woman population. 
+
+Nevertheless I believe there are reasons outside of the presented relationship that explain the above correlation. 
+
+#### c)	What are fitted values and residual for men in Germany?
+
+```{r tidy = FALSE}
+# Output of the results for the fitted values for men 
+results5$fitted.values
+
+```
+
+The fitted value is 1419 hours for men in Germany. 
+
+```{r tidy = FALSE}
+# Output of the results for the residual values for men 
+results5$residuals
+
+```
+
+The residual is -214.89 for men in Germany. 
+
+#### d) What are the fitted value and residuals for women in Spain?
+
+```{r tidy = FALSE}
+# Output of the results for the fitted values for women 
+results4$fitted.values
+
+```
+
+The fitted value is 702 hours for women in Spain. 
+
+```{r tidy = FALSE}
+# Output of the results for the residual values for women 
+results4$residuals
+
+```
+
+The residual is -51.879 for women in Spain. 
+
+
+### Problem 5
+#### (a) For each data set (for women and for men), create a scatterplot of hours worked on the y-axis and tax rates on the x-axis. 
+
+```{r tidy = FALSE}
+# Scatterplot of the relationship of hours worked to tax rates for women 
+plot(Wdata$taxrate, Wdata$hours,
+     main="Relationship Between Hours Worked and Tax Rates (Women)", 
+     xlab="Average Effective Tax Rate", 
+     ylab="Average Yearly Labor (in hours)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+```
+
+```{r tidy = FALSE}
+# Scatterplot of the relationship of hours worked to tax rate for men 
+plot(Mdata$taxrate, Mdata$hours,
+     main="Relationship Between Hours Worked and Tax Rates (Men)", 
+     xlab="Average Effective Tax Rate", 
+     ylab="Average Yearly Labor (in hours)",
+     pch=20,
+     cex = 1.0,
+     col="darkblue")
+
+```
+
+#### b) For each data set, estimate an OLS regression in which hours worked is regressed on tax rates. Report the estimate regession equations and interpret the coefficients. Explain any difference in coefficients. 
+
+```{r tidy = FALSE}
+# Ran a regression model where tax rate is the independent variable and hours worked is the dependent variable for women
+results6 <- lm(hours ~ taxrate, data = Wdata)
+
+# Summarized the results of the estimation
+summary(results6)
+
+```
+
+The estimated regression equation is  \[ ŷ_i= 827 + 53.5x_i\]. What the two coefficients tell us is that if a country has an average effective tax rate of 0%, women in that country are likely to work an average of 827 hours per year. For every percent increase of the tax rate, the average yearly labor increases by 53.5 hours. 
+
+
+```{r tidy = FALSE}
+# Ran a regression model where tax rate is the independent variable and hours worked is the dependent variable for men
+results7 <- lm(hours ~ taxrate, data = Mdata)
+
+# Summarized the results of the estimation
+summary(results7)
+
+```
+
+The estimated regression equation is  \[ ŷ_i= 1748 - 1122x_i\]. What the two coefficients tell us is that if a country has an average effective tax rate of 0%, men in that country are likely to work an average of 1748 hours per year. For every percent increase of the tax rate, the average yearly labor decreases by 1122 hours.
+
+There appears to be a positive correlation between the average effective tax rate and average yearly labor for women vs a negative correlation between those two values for men. Although there are directional differences between these two coefficients I would argue that, much like the previous question on divorce, there is a lot of endogeneity between both of these relationships. 
+
+This sample only includes 18 western countries and I believe that, once again, there are societal values at play for this specific relationship. Generally speaking, countries with a high average effective tax rate usually have a lot of government funded social programs. These social programs can cover a lot of daily expenses like healthcare, childcare, education, housing, etc. 
+
+Therefore, it would follow, that people working in these countries are not working simply to survive but for expenses outside of the necessities. When you are working to enjoy life, you have more control over what you can do with your time. You don't need to put in long hours in the office when you don't have to. This can explain the negative correlation between tax rate and yearly working labor. 
+
+I would also argue that this explanation also holds for women as we don't know exactly who is included in this average yearly labor value. Perhaps this estimate also includes all working women, single mothers included. Single mothers don't have a dual income and will have work longer hours regardless of social services.
+
+This is just one issue that came to mind when discussing the difference between the two coefficients. And this discourse doesn't even include issues such as gender wage gap, ageism, minimum wages, etc.  
+
+#### c) What are the fitted values and residual for men in the United States? 
+
+```{r tidy = FALSE}
+# Output of the results for the fitted values for men 
+results7$fitted.values
+
+```
+
+The fitted value is 1470 hours for men in the United States.
+
+```{r tidy = FALSE}
+# Output of the results for the residual values for men 
+results7$residuals
+
+```
+
+The residual is 142.88 for men in the United States.
+
+#### d) What are the fitted values and residual for women in Italy? 
+
+```{r tidy = FALSE}
+# Output of the results for the fitted values for women 
+results6$fitted.values
+
+```
+
+The fitted value is 842 hours for women in Italy. 
+
+```{r tidy = FALSE}
+# Output of the results for the residual values for women 
+results6$residuals
+
+```
+
+The residual is -186.93 for women in Italy. 
+
+### Additional problem
+#### (1) Describe this model qualitatively. In doing so, be sure to explain the parameter $b_0$.
+
+This model is an intercept only model as there is no secondary coefficient. The model is a constant ($b_0$) plus an error term ($\epsilon_i$). On the graph this would be a straight line. We would want $b_0$ to be some central statistical value such as mean or median. 
+
+#### (1) Derive an OLS estimator for this model. It may be helpful to refer to Section 1 of Chapter 14, which derives an OLS estimator for a model without an intercept.
+
+1. Our goal is to find the value of $b_0$ that minimizes the sum of the squared residuals and as such our first step is to set the equation to the error term 
+
+\[\hat{\epsilon}_i = Y_i - \hat{b}_0\]
+
+2. Take the sum of the squared residuals 
+
+\[\sum\hat{\epsilon}_i^2 = \sum(Y_i - \hat{b}_0)^2\]
+
+3. Take the derivative of the above equation
+
+\[\frac{d\sum\hat{\epsilon}_i^2}{d\hat{b}_0}  = \sum(2\hat{b}_0-2Y_i)\]
+
+4. Set the derivative to zero 
+
+\[0  = \sum(2\hat{b}_0-2Y_i)\]
+
+\[0  = \sum(2)(\hat{b}_0-Y_i)\]
+
+\[0  = \sum\hat{b}_0-Y_i\]
+
+5. Separate the sum into two pieces
+
+\[0  = \sum\hat{b}_0-\sum Y_i\]
+
+6. Pull out $\hat{b}_0$ and solve 
+
+\[\sum Y_i = \sum\hat{b}_0\]
+
+\[\sum Y_i = \sum1\hat{b}_0\]
+
+\[\sum Y_i = \hat{b}_0 \sum1\]
+
+\[\frac{\sum Y_i}{\sum1} = \hat{b}_0 \]
+
+\[\frac{\sum Y_i}{N} = \hat{b}_0 \]
+
+The derivative of the intercept only model is the mean. 

@@ -1,0 +1,213 @@
+---
+title: "Chapter 12 Problem Set"
+author: "Sahithi Adari"
+date: "11/29/20"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+## Preparation
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+require(knitr)
+require(haven)  ## install.packages("haven")
+require(car)    ## install.packages("car")
+require(AER)    ## install.packages("AER")
+library(Hmisc)  ## use the describe command
+library(mfx)
+
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+```
+
+### Question 2
+#### (a) Use an LPM to estimate the probability of saying that global warming is real and caused by humans (the dependent variable, is *HumanCause2*). Control for sex, being white, education, income, age, and partisan identification. 
+
+```{r message = FALSE}
+#Loaded the dataset
+load("Ch12_Exercise2_Global_warming.RData")
+
+```
+
+```{r tidy = FALSE}
+#Ran a LPM with HumanCause as the dependent variable 
+results <- lm( humancause ~ male + white + educ + incomecat + age + party7, data = dta)
+
+#Summarized the results 
+summary(results)
+
+```
+
+#### (a)(i) Which variable has the most important influence on this opinion? Why?
+
+The variable with the most important influence on opinion is *party7* and *educ*. A one unit increase in partisan identification (becoming more democratic) is associated with a 8.6 percentage point increase in believing that global warming is caused by humans. These results are also statistically significant at the 99.99% confidence interval. A one unit increase in formal continuous education is associated with a 2.66 percentage point increase in believing that global warming is caused by humans. These results are also statistically significant at the 99.99% confidence interval. 
+
+It makes complete sense that these two variables have the most important influence on this opinion as research shows us that Democrats are more likely to a) believe in global warming and b) believe that it is human-made (https://www.pewresearch.org/science/2019/11/25/u-s-public-views-on-climate-and-energy/). And given that the more educated you are, the more likely you are to skew Democratic (https://www.theatlantic.com/education/archive/2018/11/education-gap-explains-american-politics/575113/) the influence education on this opinion also holds. 
+
+#### (a)(ii) What are the minimum and maximum fitted values from this model? Discuss implications briefly.
+
+```{r tidy = FALSE}
+#Calculated the results
+results_pred <- predict(results, type = "response")
+
+summary(results_pred)
+
+```
+
+The minimum and maximum fitted values, from this model, are -0.197 and 0.746 respectively. Because we are trying to fit a straight line to data with dichotomous dependent variables, we run the risk of misspecifying the relationship between the independent variables and the dichotomous dependent variable. this is why we've gotten a value below 0. 
+
+#### (a)(iii) Add age-squared to the model. What is the effect of age? Use a simple sketch if necessary. with key points indentified. 
+
+```{r tidy = FALSE}
+#Ran a LPM with age_squared added
+results_2 <- lm( humancause ~ agesq + white + educ + incomecat + age + male + party7, data = dta)
+
+#Plotted LPM with age_squared
+plot(x = dta$age,
+     y = dta$humancause,
+     pch = 20,
+     main = "Scatterplot of Age and Global Warming Belief",
+     xlab = "Age",
+     ylab = "Global Warming Belief",
+     ylim = c(-0.4, 1.4),
+     cex.main = 0.8)
+
+# add horizontal dashed lines and text
+abline(h = 1, lty = 2, col = "darkred")
+abline(h = 0, lty = 2, col = "darkred")
+text(80, 0.9, cex = 0.8, "Global Warming Believer")
+text(80, -0.1, cex= 0.8, "Global Warming Denier")
+
+abline(results_2, 
+       lwd = 1.8, 
+       col = "steelblue")
+```
+```{r}
+#Summarized the results 
+summary (results_2)
+```
+
+Once we include *agesq* the model changes. 
+
+Whereas previously, a one unit increase in *age* resulted in a 0.1005%--a marginally statistically significant value at the 90% confidence interval--decrease in the probability of believing that global warming is human-made; when including *agesq*, *age* loses it's statistical significance and now results in a 0.929% decrease in the probability of believing that global warming is human-made. 
+
+#### (b) Use a probit model to estimate the probability of saying that global warming is real and caused by humans (the dependent variable, is *HumanCause2*). Use the independent variables from part (a), including the age-squared variable. 
+
+```{r}
+#Ran a probit model with HumanCause as the dependent variable 
+results_3 <- glm(humancause ~ agesq + white + educ + incomecat + age + male + party7, data = dta, family = binomial(link = "probit"))
+
+#Summarized the results 
+summary(results_3)
+
+```
+
+#### (b)(i) Compare statistical significance with LPM results.
+
+The statistically significance between the LPM model and the probit model are roughly the same with the only difference arising from the statistical significance of the *Intercept*. The LPM model states that it isn't statistically significant. whereas the probit model states that it is statistically significant at the 99.9% confidence interval.
+
+#### (b)(ii) What are the minimum and maximum fitted values from this model? Discuss implications briefly. 
+
+```{r tidy = FALSE}
+#Calculated the results
+results_pred_2 <- predict(results_3, type = "response")
+
+summary(results_pred_2)
+
+```
+
+The minimum and maximum fitted values, from this model, are 0.021 and 0.797 respectively. Unlike the LPM, the probit model will always estimate a S-shaped fitted line that is always above 0 and below 1. 
+
+#### (b)(iii) Use the observed-value, discrete-differences approach to indicate the effect of partisan indentification on the probability of saying global warming is real and caused by humans. For simplicity, simulate the effect of an increase of one unit on this seven-point scale (as opposed to the effect of one stanard deviation, as we have done for contineous variables in other cases). Compare to LPM and "marginal-effects" interpretations. 
+
+```{r tidy = FALSE}
+## Generate "P1" - the predicted values at actual values of X
+P1 = pnorm(coef(results_3)[1] + coef(results_3)[2] * dta$agesq
+           + coef(results_3)[3] * dta$white
+           + coef(results_3)[4] * dta$educ
+           + coef(results_3)[5] * dta$incomecat
+           + coef(results_3)[6] * dta$age
+           + coef(results_3)[7] * dta$male
+           + coef(results_3)[8] * dta$party7)
+
+## Generate "P2" - the predicted values with a one unit increase
+P2 = pnorm(coef(results_3)[1] + coef(results_3)[2] * dta$agesq
+           + coef(results_3)[3] * dta$white
+           + coef(results_3)[4] * dta$educ
+           + coef(results_3)[5] * dta$incomecat
+           + coef(results_3)[6] * dta$age
+           + coef(results_3)[7] * dta$male
+           + coef(results_3)[8] * (dta$party7 +1))
+
+#Average difference
+mean(P2 - P1, na.rm = TRUE)
+
+```
+
+According to the probit model using the observed-value, discrete-differences approach, the effect of *party7* on the probability that *humancause* is 1, is 0.086. That is to say the simulated effect of increasing *party7* by one unit (and therefore becoming more democratic) results in a 8.6 percentage points increase of the probability of believing global warming is human-made.
+
+This is the same value we got for *party7* in the LPM and the "marginal-effects" interpretation.
+
+#### (b)(iii) Use the observed-value, discrete-differences approach to indicate the effect of being male on the probability of saying global warming is real and caused by humans. Compare to LPM and "marginal-effects" interpretations. 
+
+```{r tidy = FALSE}
+## Generate "P1" - the predicted values at actual values of X
+P1.male = pnorm(coef(results_3)[1] + coef(results_3)[2] * dta$agesq
+           + coef(results_3)[3] * dta$white
+           + coef(results_3)[4] * dta$educ
+           + coef(results_3)[5] * dta$incomecat
+           + coef(results_3)[6] * dta$age
+           + coef(results_3)[7] * 0
+           + coef(results_3)[8] * dta$party7)
+
+## Generate "P2" - the predicted values with a one unit increase
+P2.male = pnorm(coef(results_3)[1] + coef(results_3)[2] * dta$agesq
+           + coef(results_3)[3] * dta$white
+           + coef(results_3)[4] * dta$educ
+           + coef(results_3)[5] * dta$incomecat
+           + coef(results_3)[6] * dta$age
+           + coef(results_3)[7] * 1
+           + coef(results_3)[8] * dta$party7)
+
+#Average difference
+mean(P2.male - P1.male, na.rm = TRUE)
+
+```
+
+According to the probit model using the observed-value, discrete-differences approach, the simulated effect of going from 0 (female) to 1 (male) is the average difference, 0.0198, across all observations. That is to say, men are simulated, on average, to believe that global warming is human-made by 1.98 percentage points more than women. 
+
+This is the same value we got for *male* in the LPM and the "marginal-effects" interpretation.
+
+#### (c) What framing was the most effective in affecting opinions about global warming? 
+
+```{r tidy = FALSE}
+#Created categorical dummy variables
+dta$treatment_1 <- (dta$treatment == 1)
+dta$treatment_2 <- (dta$treatment == 2)
+dta$treatment_3 <- (dta$treatment == 3)
+dta$treatment_4 <- (dta$treatment == 4)
+
+
+#Ran a LPM with warmagree as the dependent variable 
+results_4 <- lm(warmagree ~ treatment_1 + treatment_2 + treatment_3, data = dta)
+
+#Summarized the results
+summary(results_4)
+
+```
+
+According to the LPM the framing that was the most effective in affecting opinions about global warming was Frame #2. If we run the above LPM 4 different time, excluding one of the frames as the reference category each time, we get the following intercepts:
+
+Frame #1: 0.6925
+Frame #2: 0.7419
+Frame #3: 0.6783
+Frame #4: 0.6576
+
+Since we are assuming *Treatment* is a categorical variable here, the intercept of this model is meant to be the average probability of believing global warming is human-made based on the framing of the reference category. Therefore Frame #2, with an average probability of belief at 74.19% is the most effective framing in affecting opinions on global warming.

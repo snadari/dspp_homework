@@ -1,0 +1,122 @@
+---
+title: "Policy Memo on Income as a Predictor of Country-Wide Satistfaction in India"
+author: "Sahithi Adari"
+date: "10/06/20"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE, message = FALSE, warning = FALSE}
+## Preparation
+require(knitr)
+require(haven)
+require(AER)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 6)
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+
+```
+
+```{r tidy = FALSE, include = FALSE}
+#Loaded the data sets 
+load("CH5_PolicyMemo_WorldValues_subset.RData")
+
+#Subsetted the data to only include India's data
+WV_small_india <- subset(WV_small, CountryCode == "356")
+
+```
+# Question
+Is there a relationship between happiness and income in India? 
+
+# Summary
+*Income* is a strong predictor for country-wide *Satisfaction* in India even when we control for *Education* and *Conservatism*. 
+
+# Background
+The World Values Survey consists of nationally representative surveys conducted in dozens of countries using a common questionnaire. We've chosen to take a look at India specifically to fully understand if *Income* affects country-wide *Satisfaction* and to what extent. We've also included *Education* and *Conservatism* in our model in order to create a more precise estimate. 
+
+*Satisfaction* was quantified as a range from 1 (completely dissatisfied) to 10 (completely satisfied); *Income* was a country-specific scale ranging from 1 (lowest income category) to 10 (highest income category); *Education* was a scale ranging from 1 (no formal education) to 9 (a degree from a university); and lastly *Conservatism* was a self-identified political scale going from 1 (most liberal) to 10 (most conservative). 
+
+# Methods
+We present two models using a dataset that was subsetted to only include India. Our first model is our base model, looking at whether *Satisfaction* is a function of *Income* within India. 
+\begin{eqnarray*}
+\textit{Satisfaction}_i &=& \beta_0 + \beta_1 \mbox{\emph{Income}}_i + \epsilon_i 
+\end{eqnarray*}
+Our next two models were created in order to control for the omitted variable bias. In order to support or negate the results of the first model, as well as to ensure there is no endogeneity in the first model, we have also chosen to include *Education* and *Conservatism* as additional independent variables. These two variable were chosen as they appear to be highly correlated with income levels. It is generally understood that rich people are more likely to be well educated and more conservative. 
+
+We hypothesize that controlling for these values will lead to more precise estimates since they possibly have bearing on income levels.
+
+Our second model includes  the *Education* variable: 
+\begin{eqnarray*}
+\textit{Satisfaction}_i &=& \beta_0 + \beta_1 \mbox{\emph{Income}}_i + \beta_2 \mbox{\emph{Education}}_i + \epsilon_i
+\end{eqnarray*}
+While our third model includes *Education* and *Conservatism*:
+\begin{eqnarray*}
+\textit{Satisfaction}_i &=& \beta_0 + \beta_1 \mbox{\emph{Income}}_i + \beta_2 \mbox{\emph{Education}}_i + \beta_3 \mbox{\emph{Conservatism}}_i + \epsilon_i 
+\end{eqnarray*}
+
+```{r tidy = FALSE, include = FALSE}
+#Ran models 
+Income.OLS 	= lm(WV_small_india$Satisfied ~ WV_small_india$Income)
+Educate.OLS = lm(WV_small_india$Satisfied ~ WV_small_india$Income + WV_small_india$Education)
+Conserve.OLS = lm(WV_small_india$Satisfied ~ WV_small_india$Income + WV_small_india$Education + WV_small_india$Conserv)
+
+summary(Income.OLS)
+summary(Educate.OLS)
+summary(Conserve.OLS)
+
+library(apsrtable)
+apsrtable(Income.OLS, Educate.OLS, Conserve.OLS, model.names= c("(a)", "(b)", "(c)"), 	
+	coef.names=c("Constant", "Income", "Education", "Conservatism"), digits=3)
+```
+
+# Findings
+\begin{table}[]
+\centering
+\caption{Data from World Values Survey}
+\label{Model}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+& \multicolumn{ 1 }{ c }{ (a) } & \multicolumn{ 1 }{ c }{ (b) } & \multicolumn{ 1 }{ c }{ (c) }\\ 
+\hline
+Income  & $0.309$$^*$ & $0.279$$^*$ & $0.287$$^*$ \\
+        & (0.016) & (0.017) & (0.017) \\
+        & $[t = 19.5]$ & $[t = 16.78]$ & $[t = 16.73]$ \\[4.5pt]
+Education & & $0.083$$^*$ & $0.074$$^*$ \\
+          & & (0.014) & (0.014) \\
+          & &$[t = 6.08]$ &$[t = 5.27]$ \\[4.5pt]
+Conservatism & & & $0.124$$^*$ \\
+             & & & (0.015) \\
+             & & &$[t = 8.07]$ \\[4.5pt]
+Constant & $5.117$$^*$ & $4.916$$^*$ & $4.169$$^*$ \\
+         & (0.079) & (0.086) & (0.123) \\
+         & $[t = 64.4]$ & $[t = 57.40]$ & $[t = 33.99]$ \\[4.5pt]
+$N$ & 4010 & 4009 & 3603 \\[4.5pt]
+$\hat{\sigma}$ & 2.177 & 2.167 & 2.115 \\[4.5pt]
+$R^2$ & 0.087 & 0.095 & 0.118     \\
+\hline
+\multicolumn{4}{l}{\footnotesize{Standard errors in parentheses}}\\
+\multicolumn{4}{l}{\footnotesize{$^*$ indicates significance at $p< 0.05 $}} 
+\end{tabular}
+\end{table}
+
+The results for the first model in column (a) of Table \ref{Model}, indicate that for a one point increase in reported income we can expect to see a $0.309$ increase in reported satisfaction. This effect, according to the model in column (a), is statistically significant with *Income* being a relatively strong predictor for country-wide satisfaction. 
+
+In order to ensure that our first model is actually statistically significant and isn't being affected by the omitted variable bias we chose to include 2 more variables: *Eduation* and *Conservatism*. The second model in column (b) of Table \ref{Model} shows the results of just including *Education* whereas the third model in column (c) includes both *Education* and *Conservatism*. 
+
+The results for the second model in column (b) of Table \ref{Model}, indicate that for a one point increase in reported income we can expect to see a $0.279$ increase in reported satisfaction controlling for *Education*. The results for the third model in column (c), indicate that for a one point increase in reported income we can expect to see a $0.287$ increase in reported satisfaction controlling for *Education* and *Conservatism*.  
+
+Although we created 2 more models to ensure that we aren't unwittingly committing omitted variable bias, our data doesn't change drastically from the first model to the last. In fact all three models are highly statistically significant either meaning that a) there is another variable in the error term that is the true predictor and therefore, skewing all 3 models or b) income, in India, is a strong predictor for country-wide satisfaction.
+
+We're more inclined to believe the latter given that the data, across all 3 models, is statistically and substantively significant. The range of income categories are only from 1 - 10 meaning that in order for this data to be substantively significant, we would have to see meaningful and dramatic changes in *Satisfaction* with a one point leap. 
+
+If we just take our first model, $\hat{Y}_i = 5.117 + 0.307Income_i + \epsilon_i$, and calculate a $\hat{Y}_i$ for an income level of 2 and 3 we get the values of $5.731$ and $6.038$ respectively. Although these values seem fairly low and close to each other, given that our *Income* and *Satisfaction* range is from 1 - 10, there is a meaningful change in *Satisfaction* given a reasonable change in *Income*. 
+
+Lastly there are cultural aspects of India that support the assertion made by all three models. Given India's status as a developing nation, rather than a developed nation, an income jump from one category to the next does bring about visible changes in terms of access to healthcare, education, social services, etc. Also money talks in India: It's very much a culture that runs on visible bribery and so if you can't afford to throw money at any problem, the less likely that problem will be solved.
+
+Given the above assertions and despite an incredibly low $R^2$ we feel confident in all three models and believe there is a positive relationship between *Income* and country-wide *Satisfaction* in India. 

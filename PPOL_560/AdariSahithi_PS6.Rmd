@@ -1,0 +1,230 @@
+---
+title: "Chapter 7 Problem Set"
+author: "Sahithi Adari"
+date: "11/09/20"
+output:
+  html_document
+
+---
+
+### Preparation
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+require(knitr)
+library(ggplot2)
+library(tidyr)
+
+opts_chunk$set(echo = TRUE)
+options(digits = 3)
+
+```
+
+```{r message = FALSE, include = FALSE}
+rm(list = ls(all = TRUE))   # Remove objects from the previous session
+
+```
+
+### Question 4
+#### (a) Estimate a bivariate model in which $Y = \beta_0 + \beta_1 \times X_1$. What is your estimate of $\beta_1$? Does this accord with your expectation about the effect of $X_1$ on $Y$?
+
+```{r tidy = FALSE}
+# Directions: to change the value of Gamma1, Alpha or Gamma2, change the value on lines below and re-run the code.
+
+SimCount= 50			  ## Number of simulations
+N 		  = 1000			## Sample size
+X1 		  = rnorm(N)	## Independent variable of interest (which we create as a normally distributed random variable)
+Gamma1	= 1.0				## Direct effect of X1 on Y
+Alpha		= 1.0				## Effect of X1 on X2
+Gamma2	= 1.0				## Effect of X2 on Y
+X2 		  = Alpha*X1 + rnorm(N)		            ## Post-treatment variable
+Y 		  = Gamma1*X1 + Gamma2*X2 + rnorm(N)	## Dependent variable a function of X and post-treatment variable
+
+```
+
+```{r tidy = FALSE}
+#	(a) Show results when X1 is only independent variable
+OLS.A = lm(Y ~ X1)					## Regression model with X1 only
+summary(OLS.A)
+  
+# Inline code to refer to different values of the simulation
+linear_estimate <- coef(OLS.A)["X1"]
+linear_tvalue <- coef(summary(OLS.A))["X1", "t value"]
+
+```
+
+The estimate of $\beta_1$ in this model is `r linear_estimate` and is highly statistically significant at the 95% confidence interval given that the *t*-value is `r linear_tvalue`. While this model does not capture the complexity of the relationship between $X_1$ and $Y$, it does capture it's overall effect: that is to say, $\beta_1$ is an unbiased estimator of the effect of $X_1$. 
+
+The complexity of this model comes from the addition of the post-treatment variable ($X_2$), because of which, the model is now committing mediator bias. Rather than there being a direct, and uninterrupted, relationship between $X_1$ and $Y$ as one would expect, the introduction of $X_2$ absorbs some of the causal effects that would normally be present between $X_1$ on $Y$.
+
+Whereas normally the expected value of $\hat{\beta}_1$ would simply be $E[\hat{\beta}_1] = \beta_1$, the expected value, in this model, because of the post-treatment variable, becomes $E[\hat{\beta}_1] = \gamma_1 + \alpha\gamma_2$ instead. 
+
+#### (b) Add $X_2$ to the above model. What is your estimate of $\beta_1$? Does this accord with your expectation about the effect of $X_1$ on $Y$?
+
+```{r tidy = FALSE}
+##	(b) Show results when X1 and X2 (post-treatment) are independent variables 
+OLS.B = lm(Y ~ X1 + X2) 				## Regression model with X1 and X2
+summary(OLS.B)
+
+# Inline code to refer to different values of the simulation
+mediator_estimate <- coef(OLS.B)["X1"]
+mediator_tvalue <- coef(summary(OLS.B))["X1", "t value"]
+
+```
+
+The estimate of $\beta_1$ in this model is `r mediator_estimate` and is still highly statistically significant at the 95% confidence interval given that the *t*-value is `r mediator_tvalue`. This estimate is still in line with the expectations of the effect of $X_1$ on $Y$ given that the addition of $X_2$ into the model doesn't correct for mediator bias. 
+
+The new estimated coefficient on $X_1$ will only capture the direct relationship between $X_1$ and $Y$ and not the indirect effect that is cause by $X_2$. This is to say $E[\hat{\beta}_1] = \gamma_1$; by naively focusing on  $\hat{\beta}_1$ as the true effect of $X_1$, we'll miss the portion of the effect associated with $X_2$. 
+
+#### c) Come up with a real-world example of mediator bias (identifying $X_1$, $X_2$, and $Y$) for an example of interest to you. 
+
+Here is a really simple and straightforward example: is there a positive association between note-taking and performance on an exam? In this example, exam performance is our $Y$, and note-taking would be our $X_1$. The mediator variable here would be hours studying or $X_2$. While simple note taking might have an effect on performance on an exam, people who take notes are more likely to spend more time, overall, studying which would then predict performance on an exam. 
+
+Note Taking -> Hours Studying -> Performance on an Exam
+
+#### (d) Estimate a bivariate model in which $Y = \beta_0 + \beta_1X_1$. What is your estimate of $\beta_1$? Does this accord with your expectation about the effect of $X_1$ on $Y$?
+
+```{r tidy = FALSE}
+
+N 		= 1000			## Sample size
+X1 	  = rnorm(N)	## Independent variable of interest
+Alpha	= 1		      ## Effect of X1 on X2
+Rho1	= 1		      ## Effect of U on X2
+Rho2	= 1		      ## Effect of U on Y
+U 	  = rnorm(N)	## Unobserved potential confounder variable U
+X2 	  = Alpha*X1 + Rho1*U + rnorm(N)  ## X2 is a function of X1 and U and an error term
+Y 	  = Rho2*U + rnorm(N)             ## Y is only a function of U and an additional error term
+
+```
+
+```{r tidy = FALSE}
+##	(d) Show results when X1 is only independent variable 
+## Note that X1 has no effect on Y in Figure 7.8 (and the simulation above)
+OLS.X1only = lm(Y ~ X1) 			
+summary(OLS.X1only)
+	
+# Inline code to refer to different values of the simulation
+confounder_estimate <- coef(OLS.X1only)["X1"]
+confounder_tvalue <- coef(summary(OLS.X1only))["X1", "t value"]
+
+```
+
+The estimate of $\beta_1$ in this model is `r confounder_estimate` and is not statistically significant at the 95% confidence interval given that the *t*-value is `r confounder_tvalue`. This is in accordance with my expectations about the effect of $X_1$ on $Y$ given that we are not including $X_2$ in our model. The unmeasured confounder ($U$), here, is only affecting $X_2$ and not $X_1$. 
+
+In this model since there is no correlation between $X_1$ and $U$, the expected value of this model will be the true estimator or $E[\hat{\beta}_1] = \beta_1$. 
+
+#### (e) Estimate a multivariate model in which $Y = \beta_0+ \beta_1X_1+ \beta_2X_2$. What is your estimate of $\beta_1$? Does this coefficient accurately characterize the effect of $X_1$ on $Y$?
+
+```{r tidy = FALSE}
+##	(e) Show results when X1 and X2 (post-treatment) are independent variables 
+OLS.X1X2 = lm(Y ~ X1 + X2) 			
+summary(OLS.X1X2)
+
+# Inline code to refer to different values of the simulation
+collider_estimate <- coef(OLS.X1X2)["X1"]
+collider_tvalue <- coef(summary(OLS.X1X2))["X1", "t value"]	
+	
+```
+
+The estimate of $\beta_1$ in this model is `r collider_estimate` and is statistically significant at the 95% confidence interval given that the *t*-value is `r collider_tvalue`. This is coefficient does not accurately characterize the effect of $X_1$ on $Y$ because this model suffers from collider bias. This is bias that occurs when a post-treatment variable creates a pathway for spurious effects to appear in our estimation.    
+
+In our model this spurious effect comes from $U$ affecting the relationship of $\beta_2$ as well as $Y$. Because of the introduction of this variable, the $\hat{\beta_1}$ drop way down and $\hat{\beta_2}$ goes way up.
+
+This relationship changes because the model is not only dealing with collider bias but mediator bias as well. As mentioned previous the expected value of $\hat{\beta_1}$ when dealing with mediator bias is $E[\hat{\beta}_1] = \gamma_1 + \alpha\gamma_2$. In order to take into consideration collider bias we need to include the effects of $U$ into the calculation of expected value. 
+
+And given that the effect of $U$ will always draw down $\hat{\beta_1}$, the new expected value will be $E[\hat{\beta}_1] = \gamma_1 - \alpha\frac{\rho_2}{\rho_1}$. For $\hat{\beta_2}$ the new expected value will be $E[\hat{\beta}_2] = \gamma_1 + \frac{\rho_2}{\rho_1}$ since collider bias increases $\hat{\beta_2}$.
+
+#### (f) Change one of the parameters in the above simulation. Explain what you think will happen to the coefficient estimates. Do the resulting coefficients accord with your expectations?
+
+```{r tidy = FALSE}
+
+N 		= 1000			## Sample size
+X1 	  = rnorm(N)	## Independent variable of interest
+Alpha	= 100		      ## Effect of X1 on X2
+Rho1	= 1		      ## Effect of U on X2
+Rho2	= 1		      ## Effect of U on Y
+U 	  = rnorm(N)	## Unobserved potential confounder variable U
+X2 	  = Alpha*X1 + Rho1*U + rnorm(N)  ## X2 is a function of X1 and U and an error term
+Y 	  = Rho2*U + rnorm(N)             ## Y is only a function of U and an additional error term
+
+```
+
+```{r tidy = FALSE}
+##	(e) Show results when X1 and X2 (post-treatment) are independent variables 
+OLS.X1X2_new = lm(Y ~ X1 + X2) 			
+summary(OLS.X1X2_new)
+
+# Inline code to refer to different values of the simulation
+new_estimate <- coef(OLS.X1X2_new)["X1"]
+
+```
+
+Given that the expected value for $\hat{\beta}_1$ is $E[\hat{\beta}_1] = \gamma_1 - \alpha\frac{\rho_2}{\rho_1}$ we know that 3 conditions must hold for the model to not be biased: $\alpha \neq 0$ (the relationship between $X_1$ and $X_2$), $\rho_1 \neq 0$ (the relationship between $U$ and $X_2$), and $\rho_2 \neq 0$ (the relationship between $U$ and $Y$).
+
+Messing around with those 3 values will cause change the effect of the bias in different ways; the most obvious effect being the ones on $\alpha$. A high $\alpha$ (all else being held constant) will cause the $\beta_1$ estimate to be much smaller than expected.
+
+#### (g) Come up with a real-world example of collider bias (identifying $X_1$, $X_2$, and $Y$) for an example of interest to you.
+
+I don't know how much of this would necessarily count as "me coming up with an example" but when trying to get a better understanding of collider bias I came across an example that I thought was fascinating, and pertinent: it's called the "obesity paradox". This paradox has to do with the apparent preventative effect that obesity ($X_1$) has on mortality rates ($Y$) in individuals with chronic conditions ($X_2$). 
+
+In it's most basic model, obesity has a positive relationship with mortality rate; the more obese you are the higher you are at risk for health complications, shorter life spans, and death. But when a secondary variable is included in the model, say for example cardiovascular disease, the positive effect between obesity and mortality rates almost goes away! In fact the model nows says obese people live longer in fact. Why is this? 
+
+There has been a lot of debate on whether this relationship is due to collider bias: that there is this unmeasured confounder ($U$) that is affecting both mortality rates as well as cardiovascular disease causing this skewed model between obesity and mortality. And researchers have not been able to correctly pin down what this unmeasured confounder can be. In fact a recent 2016 study on this specific topic--aptly titled "Collider Bias Is Only a Partial Explanation for the Obesity Paradox"--showed that collider bias, itself, cannot explain this relationship. 
+
+> Contrary to much recent literature, our results suggest that collider bias alone cannot fully explain the obesity
+> paradox, with only small discrepancies between the association and the causal effect observed.[^1]
+
+Given that I still don't fully understand the mathematics behind collier bias, I can't help but wonder: what is the reason that people began to cry afoul for these results? Why is this change in relationship (from becoming negative to positive) so contentious? Is there a mathematical reason or is it fatphobia? I am really curious to rexplore this question once I am given the tools to properly analyze it. 
+
+[^1]: https://journals.lww.com/epidem/Fulltext/2016/07000/Collider_Bias_Is_Only_a_Partial_Explanation_for.12.aspx
+
+#### (h) [Advanced] Create a loop in which you run the collider bias simulations 100 times for the case when $\alpha = 1$, $\rho_1 = 0.05$, and $\rho_2 = 1$. Record the coefficient estimates on $X_1$ and $X_2$ for each simulation, and then plot the distribution of the coefficient estimates and calculate the average coefficient estimates across these simulations.
+
+```{r tidy = FALSE}
+
+Reps	= 100	      ## Set number of repetitions of surveys
+N 		= 1000			## Sample size
+X1 	  = rnorm(N)	## Independent variable of interest
+Alpha	= 1		      ## Effect of X1 on X2
+Rho1	= 0.05		  ## Effect of U on X2
+Rho2	= 1		      ## Effect of U on Y
+U 	  = rnorm(N)	## Unobserved potential confounder variable U
+X2 	  = Alpha*X1 + Rho1*U + rnorm(N)  ## X2 is a function of X1 and U and an error term
+
+#Created a matrix to store our results 
+CoefMatrix	= matrix(NA, Reps, 2)
+colnames(CoefMatrix) <- c("X1", "X2")
+
+# Looped the estimate as assigned the results to the CoefMatrix  
+for (ii in 1:Reps) {
+Y 	  = Rho2*U + rnorm(N)             ## Y is only a function of U and an additional error term
+OLS.result <- lm(Y ~ X1 + X2) 	
+CoefMatrix[ii,1] <- summary(OLS.result)$coefficients[2,1] 
+CoefMatrix[ii,2] <- summary(OLS.result)$coefficients[3,1]
+}
+
+```
+
+```{r tidy = FALSE}
+#Converted the matrix into a dataframe 
+df_density <- data.frame((CoefMatrix))
+
+#Gathered the dataframe into key-value pairs for easier graphing
+plot_density <- gather(df_density) 
+
+# Plot distribution of Beta1 coefficient estimates
+ggplot(plot_density, aes(x = value, color = key)) + 
+  geom_density() + 
+  xlab(expression(paste("Values of ", hat(beta[1])))) +  
+  ylab("Density") +  
+  labs(title = (expression(paste("Distribution of ", beta[1], " Estimates")))
+  )       
+
+```
+
+```{r tidy = FALSE}
+#Average coefficient estimates across the simulations
+colMeans(CoefMatrix, dims = 1)
+```
+
+
+
+
