@@ -1,0 +1,251 @@
+---
+title: "PPOL561 - HM 1 - Data Wrangling and Visualization"
+author: "Sahithi N Adari"
+output: pdf_document
+---
+
+```{r,include=F}
+knitr::opts_chunk$set(warning = F,error=F,message=F)
+require(tidyverse)
+require(wbstats)
+library(haven)
+```
+
+## Question 1
+
+_5 points_
+
+In the `Data/England-Towns/` folder lies 24 `.csv` data.frames. The data was scraped from wikipedia and contains all the town names in England (https://en.wikipedia.org/wiki/List_of_towns_in_England). We want to build a dictionary containing all the town name, so we want to bring these together into one data frame. Please do the following:
+
+1. Read in and combine all 24 `.csv` into a single data frame in `R` (using a `for()` loop). 
+2. Drop the variable `Status`.
+3. Change the variable name `Ceremonial county` to `County` 
+4. Order the data by `County`
+5. Export the data as a `.csv` to the `Output/` folder. Title the file "english-town-dictionary.csv"
+
+***
+
+I broke down this first question into 3 different components: Merging, Transforming, and Writing. 
+```{r}
+# Getting a list of the files in the folder
+town_list <- list.files(path = "./Data/English-Towns", full.names = TRUE)
+
+# Using a for loop to merge the files together
+# Please clear all objects before rerunning this code! 
+for (file in town_list) {
+  # If the merged dataset doesn't exist, create it
+  if (!exists("towns")){
+    towns <- read.csv(file, header=TRUE, sep=",")
+  }
+  
+  # If the merged dataset does exist, full join
+  if (exists("towns")){
+    temp_towns <-read.csv(file, header=TRUE, sep=",")
+    towns <- full_join(towns, temp_towns, by = c("Town", "Ceremonial.county", 
+                                                 "Status"))
+    rm(temp_towns) 
+  }
+}
+
+```
+##### Merging
+In this section I used the `list.files` function in order to get a list of file names for the for loop. I iterated over the list by a) creating a "towns" dataframe, b) reading each new CSV as "temp_towns", c) `full_join`ing "towns" and "temp_town" to "towns", and then c) removed the "temp_towns" dataframe.
+
+```{r}
+# Transforming the data
+towns <- towns %>%
+  select(Town, County = Ceremonial.county, -Status) %>% 
+  arrange(County)
+  
+```
+##### Tranforming 
+In this section I renamed "Ceremonial.county", dropped the "Status" column, and ordered by "County" by piping. 
+
+```{r}
+# Writing to CSV and exporting to the 'Output/' folder 
+write.csv(towns, file = "Output/english-town-dictionary.csv")
+```
+##### Writing
+Lastly I saved the dataframe as a CSV to the 'Output/' folder. 
+
+## Question 2
+
+_8 points_
+
+Using the `wbstats` package --- which offers a convenient API to download World Bank data --- let's draw in some population and GDP data, and clean it so that:
+
+1. Only countries are in the data; no regions or non-state entities
+2. Drop all variables but the `iso3c`,`date`,`value`, `indicatorID`, and `country`.
+3. Spread `indicatorID` into two new variables ("SP.POP.TOTL","NY.GDP.MKTP.CD") where the values correspond with the entries in the `value` variable column. 
+4. Rename `iso3c` to `ccode`, `date` to `year`, `SP.POP.TOTL` to `pop`, and `NY.GDP.MKTP.CD` to `gdp`.
+5. Rearrange the columns in the following order: `country`, `ccode`, `year`, `gdp`, `pop`
+6. Count to see if you have any missing for `gdp` entries; if there are any missing entries, create a new variable called `missing_gdp` that takes on the value of `1` if missing, `0` otherwise. How many country-year values are missing? Which country has the most missing values?
+  - tip: look at the `ifelse()` and `is.na()` functions for ideas regarding how to do this.
+7. Transform `pop` and `gdp` using the natural `log()`. Name the new variables `ln_gdp` and `ln_pop`.
+8. Export the data as a `.dta` and `.csv` into the `Output/` folder. Name the data `wb-pop-gdp-2000-2005`.
+
+Please use the tidyverse function to perform _all_ these tasks. Be sure to pipe (` %>% `) when necessary.
+
+***
+
+```{r}
+# Importing the WB dataset
+wb_data <- wb(indicator = c("SP.POP.TOTL","NY.GDP.MKTP.CD"), 
+              startdate = 2000, enddate = 2005) %>% 
+  as_tibble()
+
+```
+
+```{r}
+#Creating a "regions" dataframe consisting of regions or non-state entities only
+regions <- wb_data %>%
+  slice(c(1:276)) %>%
+  select(country) %>%
+  distinct() 
+
+#Anti-joining 'wb_data' with 'regions' to fully remove regions or non-state entities
+wb_data <- anti_join(wb_data, regions, by = "country")
+
+```
+
+```{r}
+# Data transformations
+wb_data <- wb_data %>%
+  # Question number 3 
+  mutate(SP.POP.TOTL = case_when(indicatorID == 'SP.POP.TOTL' ~ value),
+         NY.GDP.MKTP.CD = case_when(indicatorID == 'NY.GDP.MKTP.CD' ~ value)) %>%
+  # Questions number 2, 4, and 5
+  select(country, 
+         ccode = iso3c, 
+         year = date, 
+         gdp = NY.GDP.MKTP.CD, 
+         pop = SP.POP.TOTL) %>%
+  group_by(country, ccode, year) %>%
+  # Merging the columns on 'country', 'ccode', and 'year' by removing all NA 
+  # values and grouping similar rows
+  summarize_each(funs(first(na.omit(.)))) %>%
+  ungroup() %>%
+  #Questions number 6 and 7
+  mutate(missing_gdp = ifelse((is.na(gdp) == TRUE), 1, 0),
+         ln_gdp = log(gdp),
+         ln_pop = log(pop))
+
+```
+For this question I decided that rather than approaching it linearly, I would group similar questions together in order to create a more succinct code. Ideally I would have saved the "SP.POP.TOTL" and "NY.GDP.MKTP.CD" directly as "pop" and "gdp". But since the questions was explicit about this step, I left it alone. 
+
+```{r}
+# Question 6 - total number of missing country-year values
+wb_data %>% 
+  group_by(missing_gdp) %>%
+  count()
+
+```
+There are 86 country-year values missing GDP information. 
+
+```{r}
+wb_data %>%
+  group_by(country) %>%
+  summarize(
+    missing = sum(missing_gdp == 1)) %>%
+  arrange(desc(missing))
+
+```
+There is a 10 way tie in terms of countries with the most missing values: British Virgin Islands, Cayman Islands, Curacao, Gibraltar, North Korea, Nauru, Sint Maarthen (Dutch), Somalia, South Sudan, and St. Martin (French). 
+
+```{r}
+# Writing to CSV and exporting to the 'Output/' folder
+write.csv(wb_data, file = "Output/wb-pop-gdp-2000-2005.csv")
+
+# Writing to dta and exporting to the 'Output/' folder 
+write_dta(wb_data, path = "Output/wb-pop-gdp-2000-2005.dta")
+
+```
+
+## Question 3
+
+_14 points_
+
+Using the data cleaned in Question 2, please generate the following vizualizations.
+
+### (1) Generate a tile plot (`geom_tile()`) for all countries whose country name starts with the letter "A" where 
+  1. Country name is on the y-axis & year is on the x-axis
+  2. Tiles are filled with the color "orange" if gdp information is missing for that country-year, "grey30" otherwise. (hint: `missing_gdp` must be converted to `factor` class).
+  3. Legend is on the top of the plot
+  4. The label for the y-axis is blank, the label for the x-axis reads "Years", and the label for the legend reads "Missing".
+  5. Add a title that reads "Missing GDP Data"; add a subtitle that reads "A visual exploration of data missing GDP in the World Bank sample (2000-2005)"; and add a caption that reads "Only country names starting with the letter 'A' included in the figure."
+  6. Change the plot theme to `theme_minimal()`.
+  7. Export the figure as a `.pdf`, be sure to adjust height and width so one can read all the text in the plot. Use "plot1.pdf" as the file name. 
+
+Please present a rendered version of the plot in your Rmarkdown output.
+
+***
+
+```{r}
+# Creating a "wb_A" dataframe consisting of countries that start with the letter
+# "A"
+wb_A <- wb_data %>%
+filter(str_detect(country, "^A"))
+
+```
+
+```{r}
+# Tile plot of countries that start with 'A' whom are missing GDP information
+ggplot(wb_A, aes(x = year, y = country, fill = factor(missing_gdp))) +
+  geom_tile() +
+  scale_fill_manual(values = c('grey30', 'orange')) +
+  labs(title = "Missing GDP Data", 
+       subtitle = 
+"A visual exploration of data missing GDP in the World Bank sample (2000-2005)", 
+       caption = 
+  "Only country names starting with the letter 'A' included in the figure.", 
+       x = "Years", 
+       y= "", 
+       fill = "Missing") +
+  theme_minimal() +
+  theme(legend.position = "top", plot.title = element_text(size = 20),
+        plot.subtitle = element_text(size = 10))
+
+# Saving the ggplot
+ggsave("plot1.pdf")
+
+```
+
+### (2) Generate a scatter plot where of log GDP (y-axis) on log population (x-axis) where
+  1. Only observations for the year 2000 are included
+  2. The point size increases as log population increases
+  3. The point color is "forestgreen" with alpha (transparency) .5
+  4. The legend is dropped
+  5. The labels read:
+      + y: "Log GDP"
+      + x: "Log Population"
+      + title: "Relationship between population and economic development"
+      + subtitle: "World bank data for the year 2000 reported"
+  6. Change the plot theme to `theme_light()`
+  7. Export the figure as a `.png`, be sure to adjust height and width and set dpi to 600. Use "plot2.png" as the file name.
+
+Please present a rendered version of the plot in your Rmarkdown output. 
+
+***
+
+```{r}
+# Creating a "wb_2000" dataframe consisting of the year 2000 only
+wb_2000 <- wb_data %>%
+  filter(str_detect(year, "2000"))
+
+```
+
+```{r}
+# Scatterplot of log GDP against log population 
+ggplot(wb_2000, aes(x = ln_pop, y = ln_gdp)) +
+  geom_point(aes(size = ln_pop), colour = "forestgreen", alpha = 0.5) + 
+  labs(title = "Relationship between population and economic development", 
+       subtitle = "World bank data for the year 2000 reported", 
+       x = "Log Population", 
+       y= "Log GDP") +
+  theme_light() +
+  theme(legend.position = "none")
+
+# Saving the ggplot
+ggsave("plot2.png", dpi = 600, width = 10, height = 5)
+
+```

@@ -1,0 +1,432 @@
+---
+title: "PPOL561 - HM 4 - Experiments"
+author: "Sahithi N Adari"
+output: pdf_document
+---
+
+```{r,include=F}
+require(tidyverse)
+require(AER) # for the ivreg() function
+knitr::opts_chunk$set(warning = F,error = F,message = F)
+```
+
+
+# Instructions 
+
+The following questions are drawn in part from the exercises from Chapter 10 in the _Real Stats_ textbook (pg. 358-362). Please completed the questions outlined below (which may or may not be adjusted from what appears in the textbook). 
+
+**Be sure to render our completed assignment as a `.pdf` (i.e. do not turn in a printed `.html` or word document).**
+
+# Question 1
+
+In an effort to better understand the effects of get-out-the-vote messages on voter turnout, Gerber and Green (2005) conducted a randomized field experiment involving approximately 30,000 individuals in New Haven, Connecticut, in 1998. One of the experimental treatments was randomly assigned in-person visits in which a volunteer visited the person's home and encouraged him or her to vote. A description of the data (`GerberGreenData.csv`) can be found on page 359.
+
+```{r}
+# Reading the data
+turnout <- read_csv('Data/GerberGreenData.csv')
+```
+
+### (a)	Estimate a bivariate model of the effect of actual contact on voting. Is the model biased? Why or why not?
+
+```{r}
+# Bivariate model
+# Voted as the dependent variable & ContactObserved as the indepdent variable
+turnout_1 <- lm(Voted ~ ContactObserved, data = turnout)
+
+broom::tidy(turnout_1)
+```
+
+According to the bivariate OLS model, a one unit increase in *ContactObserved* is associated with a 14.56% increase in the probability of observing $Voted == 1$. This coefficient is also statistically significant at the 95% confidence level, therefore, we can reject the null. 
+
+Similar to the conversations with last week's homework, as well as what the book explains, this model is biased as there is a lot of endogeneity still remaining in the error term. To paraphrase from the book, one such example is Political Interest. Those who are politically minded are likely to a) be more receptive to a political canvasser and b) are more likely to vote overall. Once again the *p*-values are extremely small which makes me suspicious of whether this model is showing the true relationship or not.
+
+### (b)	Estimate compliance by estimating what percentage of treatment-assigned people actually were contacted.
+
+In order to determine compliance we can utilize *ContactAssigned* to be an instrument on the *ContactObserved* variable and by utilizing the first stage equation.
+
+```{r}
+## First Stage Equation ##
+# Testing one instrument
+instrument_1 <- lm(ContactObserved ~ ContactAssigned, data = turnout)
+
+# Outputting results
+broom::tidy(instrument_1)
+
+```
+ According to the results of the First Stage Equation, about 27.9% of those who were assigned to be visited were actually visited. In other words, 27.9% of the treatment group actually complied.
+
+### (c)	Use ITT to estimate the effect of being assigned treatment on whether someone turned out to vote. Is this estimate likely to be higher or lower than the actual effect of being contacted? Is it subject to endogeneity?
+
+Before outputting the results of the ITT model we can address both parts of the above question. 
+
+The ITT estimate will always be smaller than the actual effect of being contacted. This is because the ITT model just "side-steps" the issues of non-compliance (and endogeneity): it looks for the difference between the whole treatment group (regardless of compliance) and the whole control group. Therefore, it follows, where there are issues of non-compliance in the model, the ITT will always underestimate the effect of the treatment. And, because it's side stepping this issue in the first place, the ITT model is not subject to any non-compliance endogeneity.
+
+```{r}
+# ITT model
+# ContactAssigned as the dependent variable and Voted as the dependent variable
+itt_turnout <- lm(Voted ~ ContactAssigned, data = turnout)
+
+# Outputting Results 
+broom::tidy(itt_turnout)
+```
+According to the ITT model, the difference between those in the treatment group and those in control group is 0.024. A one unit increase in *ContactAssigned* is associated with a 2.43% increase in the probability of observing $Voted == 1$.
+
+### (d)	Use 2SLS to estimate the effect of contact on voting. Compare the results to the ITT results. Justify your choice of instrument.
+
+Because we've already done the first stage equation above (in part b) I will output the results of the 2SLS model (second stage) below.
+
+```{r}
+## Second Stage Equation ##
+# Including ContactAssigned as an instrument variable on ContactObserved
+instrument_2 <- ivreg(Voted ~ ContactObserved | ContactAssigned, 
+                      data = turnout)
+
+# Outputting results
+broom::tidy(instrument_2)
+
+```
+According to the 2SLS model, a one unit increase in *ContactObserved* is associated with a 8.74% increase in the probability of observing $Voted == 1$. In other words (aka paraphrasing from the book) the effect of a canvasser increases the probability to turn out to vote 8.74%. Despite the decrease in precision in the model (going from 0.0127 to 0.0261), the estimate is statistically significant at the 95% confidence level, and we can reject the null hypothesis. 
+
+Because this *p*-value is far more reasonable, I feel somewhat confident in stating that this model is probably as unbiased as it can be, although I am be curious about how the fixed effects (of wards) would change this model.
+
+### (e)	Create dummy variables indicating whether respondents lived in Ward 2 and Ward 3. Assess balance for Wards 2 and 3 and also for the people-per-household variables. Is imbalance a problem? Why or why not? Is there anything we should do about it?
+
+```{r}
+# Creating the dummy variable by ward 
+turnout$ward_2 <- ifelse(turnout$Ward == "2", 1, 0)
+turnout$ward_3 <- ifelse(turnout$Ward == "3", 1, 0)
+
+# Assessing Balance
+balance_ward2 <- lm(ward_2 ~ ContactAssigned, data = turnout)
+balance_ward3 <- lm(ward_3 ~ ContactAssigned, data = turnout)
+balance_people <- lm(PeopleHH ~ ContactAssigned, data = turnout)
+
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_ward2)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_ward3)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_people)
+```
+Because there is a statistically significant difference for Ward 3, this means that the *ward_3* variable differed across those assigned to the treatment group and the control group. In other words, there are not equal amount of ward 3 residents in the treatment group and the control group. Ward 3 residents are 1% less likely to be assigned to the treatment group. 
+
+Because there isn't a statistically significant difference for Ward 2 or the number of household residents, this tells us that a) there are equal amount of Ward 3 residents in both groups, and b) a equal amount of household sizes are represented in each group as well.  
+
+As the textbook tells us, an important consideration to make when determining imbalance is sample size and power. Because the power is high in large sample sizes (such as this one) thre is a possibility that we observe statistically significant differences even when the actual differences are substantively small. In this case, given that it is only a 1% difference for Ward 3 for such a large sample, I'm comfortable with claiming this statistical significance was due to high power. 
+
+We can also control for Ward 3 in a future model and reblock the sample if necessary. 
+
+### (f)	Estimate a 2SLS model including controls for Ward 2 and Ward 3 residence and the number of people in the household. Do you expect the results to differ substantially? Why or why not? Explain how the first-stage results differ from the balance tests described earlier.
+
+I don't expect the results to differ substantially due to issues of non-compliance.Because the compliance rate in this model is already so low this means that this relationship is always going to be endogenous no matter what. There is always going to be some unknown variable in the error term that we cannot control for that can control for non-compliance. Not to mention these residents, due to their politically active status, are less likely to be targeted in the first place.
+
+Also the difference between the first-stage results and a balance test is a simple one: the first-stage results provide a determination if *ContactAssigned* (while controlling for *ward_2*, *ward_3* and *PeopleHH*) fulfills the inclusion condition for *ContactObserved*. Whereas a balance test just tells us whether the populations within *ward_2*, *ward_3*, and *PeopleHH*, are split evenly amongst their respective control and treatment groups. 
+
+```{r}
+## First Stage Equation ##
+# Testing one instrument & including controls
+instrument_3 <- lm(ContactObserved ~ ContactAssigned + 
+                     ward_2 +
+                     ward_3 +
+                     PeopleHH, data = turnout)
+
+# Outputting results
+broom::tidy(instrument_3)
+
+```
+
+According the the first stage equation, *ContactAssigned* is still a good instrument on *ContactObserved* despite controlling for  *ward_2*, *ward_3*, and *PeopleHH*, as this value is statistically significant. 
+
+```{r}
+## Second Stage Equation ##
+# Including ContactAssigned as an instrument variable on ContactObserved
+instrument_4 <- ivreg(Voted ~ ContactObserved +
+                     ward_2 +
+                     ward_3 +
+                     PeopleHH | ContactAssigned +
+                     ward_2 +
+                     ward_3 +
+                     PeopleHH, 
+                      data = turnout)
+
+# Outputting results
+broom::tidy(instrument_4)
+
+```
+
+The second stage equation, while controlling for  *ward_2*, *ward_3*, and *PeopleHH* and using *ContactAssigned* as an instrument, tells us that a one unit increase in *ContactObserved* is associated with a 8.94% increase in the probability of observing $Voted == 1$. This value is highly statistically significant at the 95% confidence level and we can reject the null hypothesis as a result. 
+
+In terms of exploration of bias, I think the only modification I would make to this model is to control for Wards 7 and 8 instead of Wards 2 and 3. Because non-compliance is a huge issue in our model this might not make an absolute difference but I still think it would be an interesting exploration. 
+
+# Question 2 
+
+In their paper "Are Emily and Greg More Employable than Lakisha and Jamal? A Field Experiment on Labor Market Discrimination," Marianne Bertrand and Sendhil Mullainathan (2004) discuss the results of their field experiment on randomizing names on job resumes. To assess whether employers treated African-American and white applicants similarly, they had created fictitious resumes and randomly assigned white-sounding names (e.g., Emily and Greg) to half of the resumes and African-American-sounding names (e.g., Lakisha and Jamal) to the other half. They sent these resumes in response to help-wanted ads in Chicago and Boston and collected data on the number of callbacks received. Table 10.11 on page 361 describes the variables in the data set `resume.csv`.
+
+```{r}
+# Reading in the data
+resume <- read_csv("Data/resume.csv")
+summary(resume)
+```
+
+### (a)	What would be the concern of looking at the number of callbacks by race from an observational study?
+
+I think the biggest issue of looking at the number of callbacks by race from an observational study would be the fact that there is so much bias that is present in the model that the researchers cannot control for. For example, perhaps the job listing was already filled prior to the researchers sending in a fake application, perhaps the job listing got canceled, how long was the measurement time period (that is to say how long did researchers wait to hear back), was it actually race that prevented getting a callback or some other -ism (sexism, ageism, antisemitism, etc.), how was the resume being processed by the hiring agency- was it computer based or by a human, etc. 
+
+Not to mention we need to check the balance and distribution of the control group and treatment variable across the control variables in order to make sure both groups are equally represented. In general, if feels like it will be really difficult in order to discern if it actually was just race (or a "black" sounding name) that prevented certain applications from getting a callback.
+
+### (b)	Check the balance between the two groups (resumes with African American–sounding names and resumes with white-sounding names) on the following variables: `education`, years of experience (`yearsexp`), volunteering experience (`volunteer`), `honors`, `computerskills`, and gender (`female`). The treatment is whether the resume had or did not have an African American–sounding name, as indicated by the variable `afn_american`.
+
+```{r}
+# Assessing Balance
+balance_education <- lm(education ~ afn_american, data = resume)
+balance_yearsexp <- lm(yearsexp ~ afn_american, data = resume)
+balance_volunteer <- lm(volunteer ~ afn_american, data = resume)
+balance_honors <- lm(honors ~ afn_american, data = resume)
+balance_computerskills <- lm(computerskills ~ afn_american, data = resume)
+balance_female <- lm(female ~ afn_american, data = resume)
+
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_education)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_yearsexp)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_volunteer)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_honors)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_computerskills)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_female)
+```
+After running the balance tests above we can see that all the variables, except for *computerskills*, are balanced when it comes to having white applicants (the control) and black applications (the treatment) within each variable.
+
+This means that, outside of *computerskills*, there is almost equal representation of white and black resumes for the *education*, *yearsexp*, *volunteer*, *honors*, and *female* variables. There is not equal representation of white and black resumes for the *computerskills* variable. Computer skills are 2% more likely to be represented in the treatment group. 
+
+Although this sample size is much smaller than the one in problem #1, this sample size is still quite large and given that there are 4870 observations. This means that we do need to worry if the statistically significant difference found in *computerskill* is actually substantively significant. Is there actually a large magnitude of difference between white resume with computer skills and black resumes with computer skills?
+
+Once again, since this difference is only 2% I'm likely to believe that this is due to high power found in the model due to a large sample than anything else. As always we can include computer skills as a control in a future model in order to control for this imbalance.
+
+### (c)	What would compliance be in the context of this experiment? Is there a potential non-compliance problem? 
+
+Compliance in this context would be to ensure that resumes were given a black name. Given that the researchers split the pool of resumes into "white" and "black" resumes there is no non-compliance issue present in this model due to equal representation of both "white" and "black" resumes. 
+
+### (d)	What variables do we need to use 2SLS to deal with non-compliance? 
+
+We don't need to use a 2SLS model due to the fact there are no non-compliance issues. The most this model would need would be an instrument variable to be a proxy for the treatment in order to explain the endogeneity found within the *afn_american* variable.
+
+### (e)	Calculate the intention to treat (ITT) for receiving a callback from the resumes. The variable call is coded 1 if a person received a callback and 0 otherwise. Use OLS with call as the dependent variable. 
+
+```{r}
+# ITT model
+# call as the independent variable and afn_american as the dependent variable
+itt_resume <- lm(call ~ afn_american, data = resume)
+
+# Outputting results 
+broom::tidy(itt_resume)
+
+```
+According to the ITT model, the difference between those in the treatment group and those in control group is -0.032. "Black" resumes are 3% less likely to get a callback than "white" resumes.
+
+### (f)	We’re going to add covariates shortly. Discuss the implications of adding covariates to this analysis of a randomized experiment. 
+
+The inclusion of covariates has no implications on the results of the model due to the lack of the post-treatment bias. Because the variables were measured before the experiment and do not change after treatment there is no post treatment bias and therefore we can proceed with including them in the model. 
+
+Although the inclusion of the other covariates will help in trying to control for endogeneity, I still worry if this model can truly tell if a resume getting a callback is due *only* to having a "white" or "black" name only. 
+
+### (g)	Rerun the analysis from part (e) with controls for education, years of experience, volunteering experience, honors, computer skills, and gender. Report the results and briefly describe the effect of having an African American–sounding name and whether/how the estimated effect changed from the earlier results.
+
+```{r}
+# ITT model including the following covariates
+# education, yearsexp, volunteer, honors, computerskills and female
+itt_resume_2 <- lm(call ~ afn_american +
+                     education + 
+                     yearsexp + 
+                     volunteer +
+                     honors +
+                     computerskills + 
+                     female, data = resume)
+
+# Outputting results 
+broom::tidy(itt_resume_2)
+
+```
+
+According to this new ITT model, the difference between those in the treatment group and those in control group is -0.0314. Similar to the results above, and despite including covariates to control for endogeneity, "black" resumes are still 3% less likely to get a callback. 
+
+### (h)	The authors were also interested to see whether race had a differential effect for high-quality resumes and low-quality resumes. They created a variable `h_quality` that indicated a high-quality resume based on labor market experience, career profile, existence of gaps in employment, and skills. Use the controls from part (g) plus the high-quality indicator variable to estimate the effect of having an African American–sounding name for high- and low-quality resumes.
+
+```{r}
+# ITT model from part g
+# including the h_quality variable
+itt_resume_3 <- lm(call ~ afn_american +
+                     education + 
+                     yearsexp + 
+                     volunteer +
+                     honors +
+                     computerskills + 
+                     female + 
+                     h_quality, data = resume)
+
+# Outputting results 
+broom::tidy(itt_resume_3)
+
+```
+
+According to this ITT model including *h_quality*, the difference between those in the treatment group and those in control group is -0.0313. This model tells the same story as above ("black" resumes are 3% less likely to get a callback) but the key difference is that there is no other bias to control for with the variables presented in the model. We have done all we can with what we have and any remaining endogeneity is due to unquantified and unseen variables found in the error term. 
+
+# Question 3
+
+Improving education in Afghanistan may be key to bringing development and stability to that country. In 2007 only 37 percent of primary-school-age children in Afghanistan attended schools, and there is a large gender gap in enrollment (with girls 17 percentage points less likely to attend school). Traditional schools in Afghanistan serve children from numerous villages. Some believe that creating more village-based schools can increase enrollment and students' performance by bringing education closer to home. To assess this belief, researchers Dana Burde and Leigh Linden (2013) conducted a randomized experiment to test the effects of adding village-based schools. For a sample of 12 equal-sized village groups, they randomly selected 5 groups to receive a village-based school. One of the original village groups could not be surveyed and was dropped, resulting in 11 village groups with 5 treatment villages in which a new school was built and 6 control villages in which no new school was built.
+
+This question focuses on the treatment effects for the fall 2007 semester, which began after the schools had been provided. There were 1,490 children across the treatment and control villages. Table 10.12 on page 362 displays the variables in the data set `schools.csv`.
+
+```{r}
+# Reading in the data
+school <- read_csv("Data/school.csv")
+```
+
+### (a)	What issues are associated with studying the effects of new schools in Afghanistan that are not randomly assigned? 
+
+endogenity
+
+demographics and cultural 
+
+what's correlerated with the dependent and indpedent 
+
+making sure that cultural 
+
+Some of the issues that are associated with studying the effects of new schools in Afghanistan that are not randomly assigned are that the study might unduly favor the villages with more resources; the results will be biased in that the treatment and control groups might differ in more ways than just the experimental treatment; are there cultural difference between the villages that makes one more likely to have a school than others; are there demographic reasons; etc.
+
+In essence there is a lot of endogeneity in the model if the study is not randomly assigned and questions of what might be correlated with the dependent (enrollment) and the independent variable (villages with new school) that isn't accounted for.
+
+### (b)	Why is checking balance an important first step in analyzing a randomized experiment? 
+
+Checking balance is a really important first step in analyzing a random experiment as it frames and contextualizes the results. That is to say, it ensures that we we say "there is a statistically significant difference between the control and experiment" is is because both groups are the same in values and not unbalance. That the effect of the experiment is *not* due to the fact one group (either the control group or the treatment group) is that much larger than the other. 
+
+### (c)	Did randomization work? Check the balance of the following variables: age of child (`age`), `girl`, number of sheep family owns (`sheep`), length of time family lived in village (`duration_village`), `farmer`, years of education for household head (`education_head`), number of people in household (`number_ppl_hh`), and distance to nearest school (`distance_nearest_school`).
+
+```{r}
+# Assessing Balance
+balance_age <- lm(age ~ treatment, data = school)
+balance_girl <- lm(girl ~ treatment, data = school)
+balance_sheep <- lm(sheep ~ treatment, data = school)
+balance_duration_village <- lm(duration_village ~ treatment, data = school)
+balance_farmer <- lm(farmer ~ treatment, data = school)
+balance_education_head <- lm(education_head ~ treatment, data = school)
+balance_number_ppl_hh <- lm(number_ppl_hh ~ treatment, data = school)
+balance_distance_nearest_school <- lm(distance_nearest_school ~ treatment, data = school)
+
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_age)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_girl)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_sheep)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_duration_village)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_farmer)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_education_head)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_number_ppl_hh)
+```
+
+```{r}
+# Outputting results
+broom::tidy(balance_distance_nearest_school)
+```
+
+The randomization didn't work as these models are imbalanced across multiple variables. According to the above balances tests, this model is unbalanced for quite a few different variables: *sheep*, *duration_village*, *number_ppl_hh* and *distance_nearest_school*. Once again, in order to determine if these issues of imbalance are going to effect the model or not, we need to take sample size into consideration. 
+
+Now this sample (1490 observations) is straddling the line of being too small or big enough in my eyes. For the purposes of this question, I am going to say that is a large enough sample which means we need to explore the magnitude of the difference between the control and treatment population for each individual variable. Given that these values are quite large (50% plus difference between the control and treatment) it does appear that the model is imbalanced.   
+
+For *age*, *girl*, *farmer*, and *education_head* there is somewhat equal representation of the control and treatment populations in each variable. 
+
+### (d) Calculate the effect on fall enrollment of being in a treatment village. Use OLS, and report the fitted value of the school attendance variable for control and treatment villages. 
+
+```{r}
+# OLS model
+# formal_school dependent value and treatment as the independent value
+school_2 <- lm(formal_school ~ treatment, data = school)
+
+# Outputting results 
+broom::tidy(school_2)
+
+```
+
+According to this OLS model, a one unit increase in *treatment* is associated with a 46.69% increase in the probability of observing $formal_school == 1$. This coefficient is also statistically significant at the 95% confidence level, therefore, we can reject the null. 
+
+As always the incredibly high *p*-value gives me cause for concern. 
+
+### (e)	Calculate the effect on fall enrollment of being in a treatment village, controlling for age of child, sex, number of sheep family owns, length of time family lived in village, farmer, years of education for household head, number of people in household, and distance to nearest school. Is the coefficient on treatment substantially different from the bivariate OLS results? Why or why not? Briefly note any control variables that are significantly associated with attending school.
+
+```{r}
+# OLS model
+# Controlling for sheep, duration_village, number_ppl_hh, distance_nearest_school
+# age, girl, farmer, and education_head
+school_3 <- lm(formal_school ~ treatment +
+                 age + 
+                 girl + 
+                 farmer + 
+                 education_head +
+                 sheep + 
+                 duration_village + 
+                 number_ppl_hh +
+                 distance_nearest_school, data = school)
+
+# Outputting results 
+broom::tidy(school_3)
+
+```
+We we controlled for *sheep*, *duration_village*, *number_ppl_hh*, *distance_nearest_school*, *age*, *girl*, *farmer*, and *education_head*, a one unit increase in *treatment* is associated with a 44.7% increase in the probability of observing $formal_school == 1$. This coefficient is also statistically significant at the 95% confidence level, therefore, we can reject the null. Because these results are similar to the OLS model from part D, it does not appear that the controls are soaking up any bias.
+
+There are a couple more variables we could include in the model but I would worry about including them due to post-treatment bias. We have done all we can with what we have and any remaining endogeneity is due to unquantified and unseen variables found in the error term.

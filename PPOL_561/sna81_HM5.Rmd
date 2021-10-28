@@ -1,0 +1,430 @@
+---
+title: "PPOL561 - HM 5 - Regression Discontinuity"
+author: "Sahithi N Adari"
+output: pdf_document
+---
+
+```{r,include=F}
+knitr::opts_chunk$set(warning = F,error = F,message = F)
+require(tidyverse)
+require (ggplot2)
+library(jtools)
+```
+
+# Instructions 
+
+The following questions are drawn in part from the exercises from Chapter 11 in the _Real Stats_ textbook (pg. 392-397). Please completed the questions outlined below (which may or may not be adjusted from what appears in the textbook). 
+
+**Be sure to render our completed assignment as a `.pdf` (i.e. do not turn in a printed `.html`, word, or raw knitted file from script document).**
+
+
+# Question 1
+
+Gormley, Phillips, and Gayer (2008) used RD to evaluate the impact of pre-K on test scores in Tulsa. Children born on or before September 1, 2001, were eligible to enroll in the program in 2005-06, while children born after this date had to wait to enroll until the 2006-07 school year. Table 11.4 on page 392 of _Real Stats_ lists the variables. The pre-K data set covers 1,943 children just beginning the program in 2006-07 (preschool entrants) and 1,568 children who had just finished the program and began kindergarten in 2006-07 (preschool alumni).
+
+
+```{r}
+# Reading in the data 
+tulsa <- read_csv("Data/prek_tulsa_Q1.csv")
+```
+
+### (a)	Why should there be a jump in the dependent variable right at the point where a child’s birthday renders him or her eligible to have participated in preschool the previous year (2005–06) rather than the current year (2006–07)? Should we see jumps at other points as well?
+
+There should be a jump in the dependent variable (test scores) right at the point where a child's birthday renders him or her eligible to have participated in preschool the previous year (2005–06) rather than the current year (2006–07) because, presumably, schooling has a positive effect on testing for the same aged students.
+
+That is to say, there should be a systemic difference in testing abilities between the 4 years who made the cutoff and went to Pre-K vs the 4 years old who didn't make the cutoff and spent their time at home.
+
+This jump should only exist at the September 1st cutoff date because if we change the this date, we would be comparing students who are either all in Pre-K or are all not in Pre-K. If we switch that cutoff date, we won't be able to test the difference that early Pre-K enrollment makes as it relates to age-based test scores. 
+
+### (b)	Assess whether there is a discontinuity at the cutoff for the free-lunch status, gender, and race/ethnicity covariates.
+
+```{r}
+# Checking if any of the controls have a discontinuity at the cutoff date
+m1 <- lm(female ~ cutoff + age, data = tulsa)
+m2 <- lm(freelunch ~ cutoff + age, data = tulsa)
+m3 <- lm(black ~ cutoff + age, data = tulsa)
+m4 <- lm(white ~ cutoff + age, data = tulsa)
+m5 <- lm(hispanic ~ cutoff + age, data = tulsa)
+
+# Generating labels for the jtools model
+models <-c("Gender", "Free Lunch", "Black", "White", "Hispanic")
+
+# Outputting the results in a comparative manner
+jtools::export_summs(m1, m2, m3, m4, m5,
+                     model.names = models) 
+
+```
+
+According to this discontinuity check, there is no discontinuity at the cutoff for students who were able to enroll into Pre-K for the 2005 - 2006 school year vs the students who were able to enroll for the 2006 - 2007 school year. Because these values are statistically insignificant, it is not necessary to include these variables as controls for the larger, overall model.
+
+### (c)	Repeat the tests for covariate discontinuities, restricting the sample to a one-month (30-day) window on either side of the cutoff. Do the results change? Why or why not? 
+
+```{r}
+# Checking if any of the controls have a discontinuity at the cutoff date
+# Including a one-month window
+m6 <- lm(female ~ cutoff + age, data = tulsa %>% filter(abs(age) <= 30))
+m7 <- lm(freelunch ~ cutoff + age, data = tulsa %>% filter(abs(age) <= 30))
+m8 <- lm(black ~ cutoff + age, data = tulsa %>% filter(abs(age) <= 30))
+m9 <- lm(white ~ cutoff + age, data = tulsa %>% filter(abs(age) <= 30))
+m10 <- lm(hispanic ~ cutoff + age, data = tulsa %>% filter(abs(age) <= 30))
+
+# Outputting the results in a comparative manner
+jtools::export_summs(m6, m7, m8, m9, m10,
+                     model.names = models)
+
+```
+Similar to the results above, even when we restrict the sample to a one-month window at either side of the cutoff date, the covariates are still statistically insignificant meaning that there is still no "jump" in covariates at the point of discontinuity. 
+
+### (d)	Use letter–word identification test score as the dependent variable to estimate a basic RD model controlling for treatment status (born before the cutoff) and the assignment variable (age measured as days from the cutoff). What is the estimated effect of the preschool program on letter–word identification test scores? 
+
+```{r}
+# RD model with test scores as the dependent variable, cutoff as the treatment
+# and age as the assignment
+tulsa_1 <- lm(wjtest01 ~ cutoff + age, data = tulsa)
+
+# Outputting results
+broom::tidy(tulsa_1)
+```
+The estimated effect of the preschool program on letter-word identification test scores is a statistically significant value of 3.492. This means that the effect of going to Pre-K as a 4 year old instead of staying at home, increases the overall test scores by 3.492 points when this test is given at 5 years old. 
+
+In a less convoluted way, going to school earlier positively effects age-based testing.As mentioned earlier this is a statistically significant value at the 99.9% confidence level.
+
+### (e)	Estimate the effect of pre-K using an RD specification that allows the relationship to vary on either side of the cutoff. Do the results change? Should we prefer this model? Why or why not? 
+
+```{r}
+# Varying slopes RD model using the same variables in part D
+tulsa_2 <- lm(wjtest01 ~ cutoff * age, data = tulsa)
+
+# Outputting results
+broom::tidy(tulsa_2)
+
+```
+
+The coefficient on *cutoff*, in this model, changes very slightly going from 3.492 in part D to 3.479 here. This value is still statistically significant at the 99.9% confidence level. 
+
+The most notable interpretation from this model is that there are no varying slopes as the interaction term ($cutoff \times age$) is not statistically significant. This means that because we can't reject the null hypothesis, despite having a estimated coefficient of 0.00068, this value is most probably 0.
+
+### (f)	Add controls for lunch status, gender, and race/ethnicity to the model. Does adding these controls change the results? Why or why not?
+
+```{r}
+# RD model from part D but now including controls
+tulsa_3 <- lm(wjtest01 ~ cutoff * age + female + 
+             freelunch + white + black + hispanic, data = tulsa)
+
+# Outputting results
+broom::tidy(tulsa_3)
+```
+
+So there is actually a really interesting difference here when include the controls. The expectations, when including controls, is that the coefficient will decrease and the precision will increase as good controls, control for factors that could affect the dependent variable but could also be correlated with the independent variable. 
+
+In this model not only did the magnitude on the coefficient for *cutoff* (going from 3.479 to 3.618) increase but the precision increased as well (the standard errors are smaller). This is a larger and more precise estimate. 
+
+I'm going to be honest in that this is a bit difficult for me to explain as it goes against what I understand, but what it appears to be is that there is more precision when we add in the controls which now results in a larger magnitude of difference (larger coefficients) between the two models.
+
+It is also worth mention that since these covariates are not discontinuous, the real reason for why the coefficients have increased isn't important. 
+
+### (g)	Reestimate the model from part (f), limiting the window to one month (30 days) on either side of the cutoff. Do the results change? How do the standard errors in this model compare to those from the model using the full data set? 
+
+```{r}
+# RD model using the same variables from part F but now with a 30 day window
+tulsa_4 <- lm(wjtest01 ~ cutoff * age + female + freelunch + 
+             white + black + hispanic, data = tulsa %>% filter(abs(age) <= 30))
+
+# Outputting results
+broom::tidy(tulsa_4)
+
+```
+
+There are two notable differences in this model when we include window size: one, the estimate goes from 3.613 to 5.315 while still being statistically significant at the 99.9% confidence level; and two, the standard errors have exploded. 
+
+This is largely due in part because of statistical power: a smaller sample, due to the window, results in a low powered model which means there are larger standard errors. The dispersion of the distribution of errors get larger and, therefore, result in larger standard errors overall. 
+
+Having a smaller dataset also means that we are less likely to arrive at the true mean: this explains why the coefficient/results have changed from the previous model.
+
+# Question 2
+
+Gormley, Phillips, and Gayer (2008) also used RD to evaluate the impact of Head Start on test scores in Tulsa. Children born on or before September 1, 2001, were eligible to enroll in the program in 2005--06, while children born after this date could not enroll until the 2006--07 school year. The variable names and definitions are the same as in Table 11.4 on page 392 in _Real Stats_, although in this case the data refers to 732 children just beginning the program in 2006--07 (Head Start entrants) and 470 children who had just finished the program and were beginning kindergarten in 2006--07 (Head Start alumni).
+
+
+```{r}
+# Reading in the data
+headstart <- read_csv("Data/prek_tulsa_Q2.csv")
+
+```
+
+### (a)	Assess whether there is a discontinuity at the cutoff for the free-lunch status, gender, and race/ethnicity covariates.
+
+```{r}
+# Checking if any of the controls have a discontinuity at the cutoff date 
+# Using the new headstart dataset
+n1 <- lm(female ~ cutoff + age, data = headstart)
+n2 <- lm(freelunch ~ cutoff + age, data = headstart)
+n3 <- lm(black ~ cutoff + age, data = headstart)
+n4 <- lm(white ~ cutoff + age, data = headstart)
+n5 <- lm(hispanic ~ cutoff + age, data = headstart)
+
+# Outputting the results in a comparative manner
+jtools::export_summs(n1, n2, n3, n4, n5,
+                     model.names = models) 
+
+```
+
+According to this discontinuity check, there is no discontinuity at the cutoff for students who were Head Start alumni vs the students who are Head Start entrants. Because these values are statistically insignificant, it is not necessary to include these variables as controls for the larger, overall model. 
+
+### (b)	Repeat the tests for covariate discontinuities, restricting the sample to a one-month (30-day) window on either side of the cutoff. Do the results change? Why or why not?
+
+```{r}
+# Checking if any of the controls have a discontinuity at the cutoff date
+# Including a one-month window
+n6 <- lm(female ~ cutoff + age, data = headstart %>% filter(abs(age) <= 30))
+n7 <- lm(freelunch ~ cutoff + age, data = headstart %>% filter(abs(age) <= 30))
+n8 <- lm(black ~ cutoff + age, data = headstart %>% filter(abs(age) <= 30))
+n9 <- lm(white ~ cutoff + age, data = headstart %>% filter(abs(age) <= 30))
+n10 <- lm(hispanic ~ cutoff + age, data = headstart %>% filter(abs(age) <= 30))
+
+# Outputting the results in a comparative manner
+jtools::export_summs(n6, n7, n8, n9, n10,
+                     model.names = models)
+```
+
+When we restrict the sample to a one-month window at either sides of the cutoff, the *freelunch* and *black* covariates "jump" or become statistically significant.Because the results have changed, we now have to worry if there is any self-selection or if the "jump" at *wjtest101* is actually due to these other covariates and not just *cutoff* alone.
+
+To interpret the results, there is a 0.16 "jump" on the *freelunch* covariate at the cutoff date which is statistically significant at the 95% confidence level. And there is a 0.45 "jump" on the *Black* covariate at the cutoff date which is statistically significant at the 95% confidence level as well. 
+
+Although these statistically significant covariates don't negate the strength of the supposed relationship between the *cutoff* and *wjtest01* (because we can always control for *freelunch* and *black*), it is now plausible that the difference of *wjtest101* at the cutoff date is actually due to an unmeasureable variable found in the error term.
+
+### (c)	Use letter–word identification test score `wjtest01` as the dependent variable to estimate a basic RD model. What is the estimated effect of the preschool program on letter–word identification test scores?
+
+```{r}
+# RD model with test scores as the dependent variable, cutoff as the treatment
+# and age as the assignment
+headstart_1 <- lm(wjtest01 ~ cutoff + age, data = headstart)
+
+# Outputting results
+broom::tidy(headstart_1)
+```
+The estimated effect of the Head Start program on letter-word identification test scores is a statistically significant value of 1.849. This means that the effect of being a Head Start alumni compared to a Head Start entrant increases the overall test scores by 1.849 points. This is also statistically significant value a the 99.99% confidence level.
+
+### (d)	Estimate the effect of Head Start using an RD specification that allows the relationship to vary on either side of the cutoff. Do the results change? Should we prefer this model? Why or why not?
+
+```{r}
+# Varying slopes RD model using the same variables in part C
+headstart_2 <- lm(wjtest01 ~ cutoff * age, data = headstart)
+
+# Outputting results
+broom::tidy(headstart_2)
+
+```
+
+The coefficient on *cutoff*, in this model, changes a little bit going from 1.849 in part D to 1.960 here. This value is still statistically significant at the 99.9% confidence level. 
+
+The most notable interpretation from this model is that there are no varying slopes as the interaction term ($cutoff \times age$) is not statistically significant. This means that because we can't reject the null hypothesis, despite having a estimated coefficient of -0.0021, this value is most probably 0.
+
+### (e)	Add controls for lunch status, gender, and race/ethnicity to the model. Do the results change? Why or why not? 
+
+```{r}
+# RD model from part C but now including controls
+headstart_3 <- lm(wjtest01 ~ cutoff * age + female + 
+             freelunch + white + black + hispanic, data = headstart)
+
+# Outputting results
+broom::tidy(headstart_3)
+```
+
+Once again these results spiked (like the results from 1F) the coefficient from 1.960 to 2.072 while remaining statistically significant at the 95% confidence level, and remaining fairly steady in terms of precision. This spike makes sense though because, as we explored in problem 2B, the controls on *freelunch* and *black* were statistically significant meaning that they will effect the relationship of the *cutoff* on *wjest01*.
+
+### (f)	Reestimate the model from part (e), limiting the window to one month (30 days) on either side of the cutoff. Do the results change? How do the standard errors in this model compare to those from the model using the full data set?  
+
+```{r}
+# RD model using the same variables from part E but now with a 30 day window
+headstart_4 <- lm(wjtest01 ~ cutoff * age + female + freelunch + 
+             white + black + hispanic, data = headstart %>% filter(abs(age) <= 30))
+
+# Outputting results
+broom::tidy(headstart_4)
+
+```
+
+When we include a window the biggest difference between the 2 models is that, now, all the variables are statistically insignificant. 
+
+Yes the standard errors have increased (meaning that explanation of small sample size, low power, and higher standard errors still hold) but once we include a window, there appears to be no discontinuity between Head Start alumni and Head Start entrants as it relates to test scores.
+
+# Question 3
+
+Congressional elections are decided by a clear rule: whoever gets the most votes in November wins. Because virtually every congressional race in the United States is between two parties, whoever gets more than 50 percent of the vote wins. We can use this fact to estimate the effect of political party on ideology. Some argue that Republicans and Democrats are very distinctive; others argue that members of Congress have strong incentives to respond to the median voter in their districts, regardless of party. We can assess how much party matters by looking at the ideology of members of Congress in the 112th Congress (which covered the years 2011 and 2012). Table 11.5 on page 394 in _Real Stats_ lists the variables.
+
+```{r}
+# Reading in the data
+congress <- read_csv("Data/congress.csv")
+
+```
+
+### (a)	Suppose we try to explain congressional ideology as a function of political party only. Explain how endogeneity might be a problem.
+
+If we just include political party as the independent variable, a) we won't really understand the role that ideology plays in "median" districts/for the median voter, and b) that relationship could actually be due to demographic factors and not just political party status. 
+
+The codebook includes variables such as *MedianIncome*, *ChildPoverty* and *WhitePct* but, even outside of those variables, perhaps educational attainment of the district, gender parity, home ownership rates are better indicators for ideology than just political party/ the *GOP2party2010* variable.
+
+### (b)	How can an RD model fight endogeneity when we are trying to assess whether and how party affects congressional ideology?
+
+An RD model can fight endogeneity when we are trying to assess whether and how party affects congressional ideology because the assignment variables (here being *GOP2party2010*) can soak up the correlation of error and treatment. It is also important to note that the other key assumption here (which makes an RD model better able to fight endogeneity) is the assumption that when the assignment variable crosses the cutoff that the error term will be continuous without any jump. 
+
+As long as the error term doesn't jump at the cutoff we'll be better able to say how party affects congressional ideology versus any of the other factors we outlined above. 
+
+### (c)	Generate a scatterplot of congressional `Ideology` against `GOP2party2010` and, based on this plot, discuss what you think the RD will indicate. 
+
+```{r}
+# Creating a simple ggplot of Ideology against GOP2party2010
+congress %>% 
+ggplot(aes(GOP2party2010, Ideology)) +
+  geom_point() + 
+  labs (title = "Scatterplot of `Ideology` against `GOP2party2010`")
+
+```
+
+The biggest takeaway here is that even for "moderate" districts (where 50% of the vote share when to Republicans and 50% went to Democrats), there is still a ideological gap. The jump itself is the ideological difference between GOP-won moderate districts and Democrat-won moderate districts. 
+
+I believe the RD model will show that, there can be ideologically moderate districts but, even for those districts, those who win are more likely to be ideologically to the left or the right in fairly distinct ways. 
+
+### (d)	Write down a basic RD model for this question and explain the terms. 
+
+$Ideology = \beta_0 + \beta_1 * GOPwin2010 + \beta_2 (GOP2party2010) + \epsilon$
+
+$\beta_0$ - baseline ideology of a "moderate" district 
+$\beta_1$ - the ideological difference between the two GOP-won moderate districts and Democrat-won moderate districts 
+$\beta_2$ - the slope of the change in ideology based on vote share
+
+### (e)	Estimate a basic RD model and interpret coefficients.
+
+```{r}
+# Creating a basis RD model
+# GOP2party2010 is the assignment variable
+congress_1 <- lm(Ideology ~ GOPwin2010 + GOP2party2010, data = congress)
+
+# Outputting the results
+broom::tidy(congress_1)
+```
+
+*GOPwin2010* - The GOP-won districts have a 0.99 increase on our ideology scale in more moderate districts. This is highly statistically significant at the 99.99% confidence level.
+
+*GOP2party2010* - the coefficient here denotes that for each percentage point increase in vote share in a district we see an increase in ideology of 0.23 on the ideology conservatism scale. This is highly statistically significant at the 99.99% confidence level as well.
+
+### (f)	Estimate a varying slopes model, and interpret the results.
+
+```{r}
+# Creating a varying slope model using an interaction term
+congress_2 <- lm(Ideology ~ GOPwin2010 * GOP2party2010, data = congress)
+
+# Outputting the results
+broom::tidy(congress_2)
+```
+
+When we change our model to a varying slopes model, our coefficients all changed value. The "jump" between GOP-won moderate districts and Democrat-won moderate districts now becomes a 1.22 "increase" in the ideology scale (versus the 0.99 in the previous model). This value is still highly statistically significant at the 99.9% confidence level meaning that we can reject the null hypothesis. 
+
+Because both of the values on $\hat{\beta_2}$ and $\hat{\beta_3}$ are statistically significant, we can use those coefficients in generating slope rather than assuming that the true value is zero. The slope for Democrat-won districts is 0.52 whereas the slope on GOP-won districts 0.04. 
+
+### (g)	Assess whether there is clustering of the dependent variable just above the cutoff.
+
+```{r}
+# Creating a bar plot to determine clustering of the dependent variable
+ggplot(congress, aes(x = Ideology)) + 
+  geom_histogram() + 
+  labs (title = "Clustering of `Ideology`")
+
+```
+
+This clustering exercise goes to show that there are no truly moderate candidates; there is an ideological difference between GOP and Democratic congresspeople within in moderate .
+
+Also is this question supposedly to actually ask about the assignment variable and not the dependent variable? I was a little thrown off about why we were being asked about the clustering of the dependent variable when our textbook and lectures talked predominately about the assignment variable. 
+
+### (h)	Assess whether there are discontinuities at GOPVote = 0.50 for `ChildPoverty`, `MedianIncome`, `Obama2008`, and `WhitePct`. Discuss the implications of your findings. 
+
+```{r}
+# Checking if any of the controls have a discontinuity at the cutoff
+p_1 <- lm (ChildPoverty ~ GOPwin2010 + GOP2party2010, data = congress)
+p_2 <- lm (MedianIncome ~ GOPwin2010 + GOP2party2010, data = congress)
+p_3 <- lm (Obama2008 ~ GOPwin2010 + GOP2party2010, data = congress)
+p_4 <- lm (WhitePct ~ GOPwin2010 + GOP2party2010, data = congress)
+
+# Generating labels for the jtools model
+models_2 <- c("Child Poverty", "Median Income", "Obama 2008", "White %")
+
+# Outputting the results in a comparative manner
+jtools::export_summs(p_1, p_2, p_3, p_4, model.names = models_2)
+
+```
+
+According to this discontinuity check, the *Obama2008* and *WhitePct *covariates are highly statistically significant. Because the results have changed, we now have to worry if there is any self-selection or if the "jump" at *Ideology* is actually due to these other covariates and not just *GOPwin2010* alone.
+
+To interpret the results, there is a -0.04 "jump" on the *Obama2008* covariate at the cutoff which is statistically significant at the 99.99% confidence level.  And there is a 0.06 "jump" on the *WhitePct* covariate at the cutoff which is statistically significant at the 95% confidence level as well.
+
+Although these statistically significant covariates don't negate the strength of the supposed relationship between the *GOPwin2010* and *Ideology* (because we can always control for *Obama2008* and *WhitePct*), it is now plausible that the difference of *Ideology* at the cutoff is actually due to an unmeasureable variable found in the error term.
+
+### (i)	Estimate a varying-slopes model controlling for ChildPoverty, MedianIncome, Obama2008, and WhitePct. Discuss these results in light of your findings from part (h). 
+
+```{r}
+# Varying slopes model with controls 
+congress_3 <- lm(Ideology ~ GOPwin2010 * GOP2party2010 + 
+                   ChildPoverty +
+                   MedianIncome +
+                   Obama2008 +
+                   WhitePct, data = congress)
+
+# Outputting the results
+broom::tidy(congress_3)
+
+```
+
+There are two changes with the results of this new model: 1) although this value is still statistically significant at the 99.9% confidence level, the coefficient is now 1.05 instead of 1.22; and 2) $\hat{\beta_2}$ and $\hat{\beta_3}$ are now not statistically significant. Not only does this means there aren't varying slopes but there isn't a slope to be found at all. 
+ What was once a statically significant difference of slopes between Democrat-won districts and GOP-won districts are now are essentially nulled by the controls. Essentially by including the controls, specifically *Obama2008* and *WhitePct* here, they soaked up the effects of what originally cause the varying-slopes.
+
+### (j)	Estimate a quadratic RD model and interpret the results.
+
+```{r}
+# Creating a separate variable that is just the GOP2party2010 squared value
+congress$GOPsquared <- congress$GOP2party2010^2
+
+# Creating a quadratic model with the variable I created above
+congress_4 <- lm(Ideology ~ GOPwin2010 * GOP2party2010 + 
+                   GOPwin2010 * GOPsquared, data = congress)
+
+# Outputting the results
+broom::tidy(congress_4)
+```
+
+According to this quadratic model, the "jump" between GOP-won moderate districts and Democrat-won moderate districts decreases "down" to a 0.54 increase in the ideology scale. This value is statistically significant but only at the 95% confidence level meaning that we can still reject the null hypothesis.
+
+The reason why the coefficient values has now decreased is because the quadratic functional form makes the difference less profound because of the flexibility of the model.
+
+### (k) Estimate a varying-slopes model with a window of GOP vote share from 0.4 to 0.6. Discuss any meaningful differences in coefficients and standard errors from the earlier varying-slopes model.
+
+```{r}
+# Creating a varying-slopes model with a window and controls
+congress_5 <- lm(Ideology ~ GOPwin2010 * GOP2party2010 +
+                   ChildPoverty +
+                   MedianIncome +
+                   Obama2008 +
+                   WhitePct, data = congress %>% 
+                   filter((GOP2party2010 >= 0.4) & (GOP2party2010 <= 0.6)))
+
+# Outputting the results
+broom::tidy(congress_5)
+
+```
+
+If we compare the results from the previous varying-slopes mode of part I (and similar to the discussions in previous parts of this problem set), although the functional form is different (using a window) the jump is still around the same value and the explosion in standard errors is due to statistical power. 
+
+With this new model, the difference between GOP-won moderate districts and Democrat-won moderate districts is now a 1.201 difference in the ideology scale. This value is statistically significant at the 99% confidence level.
+
+Once again, because we are using controls in our model, the varying-slopes are actually not varying at all: the slope of the Democrat-won districts and the slope of the GOP-won districts are now are essentially nulled by the controls.
+
+And, as mentioned in previous questions for this problem set, the standard errors are larger because of statistical power; smaller sample sizes results in lower power and higher standard errors. 
+
+### (l)	Which estimate is the most credible?
+
+In order to determine which estimate is the most credible, you have to first answer the question on whether the benefits of using a window outweighs the imprecision that comes with higher standard errors. I don't think there is a blanket statement answer to the question of windows vs precision; it will have to be on a question-by-question basis. 
+
+For me, I'm more likely to believe the results from Part I over Part F because I don't think the imprecision is really worth it with using a window. Not only that but the relationship, as is, is already quiet visible by itself. Creating a window doesn't really add anything to the relationship that we can't already see.
+
+Part I, seems to be the most credible as a) it includes the controls (which we know are statistically significant and will need to be controlled for in the model) while giving us an estimate that is more precise than if we were using a window.
+

@@ -1,0 +1,546 @@
+---
+title: "PPOL561 - HM 7 - Generalized Linear Models"
+author: "Sahithi N Adari"
+output: pdf_document
+fontsize: 12pt
+---
+
+```{r,include=F}
+require(tidyverse)
+require(MASS) # For ordered models
+require(nnet) # For multinomial models
+require(obsval) # For simulating confidence intervals
+# devtools::install_github("chrismeserole/obsval") # Too install, if need be
+
+knitr::opts_chunk$set(warning = F,error = F,message = F)
+```
+
+
+# Instructions
+
+The following questions ask you to implement two models on a similar dependent variable regarding the quality of oral arguments in the Supreme Court. Please complete each question. There are a total of 14 possible points available for this assignment (1 point for each question).
+
+# Data 
+
+The following is replication data from **Johnson, Timothy R., Paul J. Wahlbeck, and James F. Spriggs. 2006. "The influence of oral arguments on the US Supreme Court." _American Political Science Review_ 100(1): 99-113.**
+
+Paper abstract:
+
+> We posit that Supreme Court oral arguments provide justices with useful information that influences their final votes on the merits. To examine the role of these proceedings, we ask the following questions: (1) what factors influence the quality of arguments presented to the Court; and, more importantly, (2) does the quality of a lawyer's oral argument affect the justices' final votes on the merits? We answer these questions by utilizing a unique data source—evaluations Justice Blackmun made of the quality of oral arguments presented to the justices. Our analysis shows that Justice Blackmun's grading of attorneys is somewhat influenced by conventional indicators of the credibility of attorneys and are not simply the product of Justice Blackmun's ideological leanings. We thus suggest they can plausibly be seen as measuring the quality of oral argument. We further show that the probability of a justice voting for a litigant increases dramatically if that litigant's lawyer presents better oral arguments than the competing counsel. These results therefore indicate that this element of the Court's decisional process affects final votes on the merits, and it has implications for how other elite decision makers evaluate and use information.
+
+As the abstract notes, these data contain "grades" Justice Harry Blackmun assigned to litigators after they gave oral arguments to the Supreme Court. The data set is restricted to the years when Justice Blackmun was on the court. In the original analysis, the authors had a number of predictor variables, but for this practice, we'll focus on just a few. Note that some of these data were transformed from how they appeared in the original article. The variables are outlined below:
+
+**Dependent Variables**
+
+- **Oral Argument Grade** (`grade`): Grade assigned to oral arguments presented to the Supreme court. Grades were issued by Justice Blackmun. The paper selected a random sample of 554 cases decided between 1970 and 1994. Grades range from 1-4, Where 1 is a `D` and 4 is an `A`.
+
+- **Good Oral Argument Grade** (`good_grade`): dummy variable that takes on the value of 1 if the attorney received a B grade or higher, 0 otherwise.
+
+**Independent Variables**
+
+- **_Litigation Experience_** (`prevexp`): Litigation experience is coded as “the number of times an attorney previously appeared before the U.S. Supreme Court at oral arguments". A categorical variable was constructed from these counts: "None (0)", "Some (1-5)", and "Experienced (6 +)".
+
+- **_Washington Elite_** (`wash_elite`): dummy variable that takes on the value 1 if attorney engaged in oral argument is from Washington (but not a federal lawyer), 0 otherwise.
+
+- **_Elite School_** (`eliteschool`): dummy variable that takes on the value 1 if the attorney engaged in oral argument went to an elite law school (Harvard, Yale, Columbia, Stanford, Chicago, Berkeley, Michigan, and Northwestern), 0 otherwise.
+
+- **_Law Professor_** (`lawprof`): dummy variable that takes on the value 1 if the attorney engaged in oral argument is a law professor, 0 otherwise.
+
+- **_Federal Attorney_** (`fedattrn`): dummy variable that takes on the value 1 if the attorney engaged in oral argument is a federal attorney, 0 otherwise.
+
+`usid` and `lawyer_number` are unique identifiers in the data.
+
+```{r}
+dat <- readr::read_csv('oral-args-data.csv') %>% 
+  # Convert Characters to Factors
+  dplyr::mutate(grade = factor(grade,
+                               levels = c("D","C","B","A"))) %>% 
+  
+  
+  # Previous experience to numeric
+  # 0: "None (0)"
+  # 1: "Some (1-5)"
+  # 2: "Experienced (6 +)
+  dplyr::mutate(prevexp = as.numeric(factor(prevexp,
+                                      levels = c("None (0)",
+                                                 "Some (1-5)",
+                                                 "Experienced (6 +)"))) - 1)
+
+```
+
+# Questions
+
+## (1) Know your data:
+
+#### (a) How many observations are there per outcome type? Build a table counting the number of observations you have for each outcome type. Do this for both the categorical and dummy version of the dependent variable. Does anything stand out to you as being potentially problematic with any of the variables?
+
+```{r}
+## Dependent Variables ##
+
+# Categorical variable
+dat %>%
+  count(grade)
+
+```
+
+```{r}
+# Dummy variable
+dat %>%
+  count(good_grade)
+```
+
+So when we're looking at the distribution of letter grades for the outcome variable `grade`, a large majority of the values are skewed towards a letter grade of either 'B' or 'C'. There is an uneven distribution of grades overall as there are few 'D' or 'A' grades.
+
+#### (b) Using `table()` (or the `tidyverse`) construct crosstabs for each independent variable and each outcome type. Do this for both `grade` and `good_grade`. Does anything stand out to you a being potentially problematic?
+
+```{r}
+## prevexp ##
+
+# Grade
+dat %>%
+  group_by(grade, prevexp) %>%
+  summarise(n=n()) %>%
+  spread(grade, n)
+  
+# Good grade
+dat %>%
+  group_by(good_grade, prevexp) %>%
+  summarise(n=n()) %>%
+  spread(good_grade, n)
+```
+
+```{r}
+## wash_elite ##
+
+# Grade
+dat %>%
+  group_by(grade, wash_elite) %>%
+  summarise(n=n()) %>%
+  arrange(desc(grade)) %>%
+  spread(grade, n)
+
+# Good grade
+dat %>%
+  group_by(good_grade, wash_elite) %>%
+  summarise(n=n()) %>%
+  spread(good_grade, n)
+```
+
+```{r}
+## eliteschool ##
+
+# Grade
+dat %>%
+  group_by(grade, eliteschool) %>%
+  summarise(n=n()) %>%
+  arrange(desc(grade)) %>%
+  spread(grade, n)
+
+# Good grade
+dat %>%
+  group_by(good_grade, eliteschool) %>%
+  summarise(n=n()) %>%
+  spread(good_grade, n)
+```
+
+```{r}
+## lawprof ##
+
+# Grade
+dat %>%
+  group_by(grade, lawprof) %>%
+  summarise(n=n()) %>%
+  arrange(desc(grade)) %>%
+  spread(grade, n)
+
+# Good grade
+dat %>%
+  group_by(good_grade, lawprof) %>%
+  summarise(n=n()) %>%
+  spread(good_grade, n)
+```
+
+```{r}
+## fedattrn ##
+
+# Grade
+dat %>%
+  group_by(grade, fedattrn) %>%
+  summarise(n=n()) %>%
+  arrange(desc(grade)) %>%
+  spread(grade, n)
+
+# Good grade
+dat %>%
+  group_by(good_grade, fedattrn) %>%
+  summarise(n=n()) %>%
+  spread(good_grade, n)
+```
+
+So there are two potentially problematic things with the above exploration. 
+
+1) The majority of the data still skews towards 'B' or 'C' regardless of what independent variable we are using. In essence we have an issues with imbalanced classes.
+
+2) There are not that many law professors in the data that argued in front of the Supreme Court. This variable is particularly low compared to all the other independent variables of interest. 
+
+## (2) Using the oral argument data outlined above, formulate a hypothesis regarding one or more of the independent variables on the likelihood of receiving a positive oral argument grade. What is the Alternative Hypothesis? What is the Null Hypothesis? Be sure to lay out the logic of your hypothesis. (Note your hypothesis need not be grounded in existing theory; rather, state a hunch/expectation/assumption).
+
+My hypothesis: Going to an elite school will result in a positive oral argument grade. This hypothesis is based on the observation that an increase in `eliteschool` resulted in attorneys more likely to get a positive grade (~77%) than not (~54%).
+
+The Null Hypothesis: Going to an elite school has no bearing on whether an attorney gets a good grade or not (i.e. $H_0: eliteschool = 0$).
+
+The Alternative Hypothesis: Going to an elite school has a nonzero effect on whether an attorney get a good grade (i.e.  $H_A: eliteschool \neq 0$).
+
+## (3) Using the oral argument data outlined above, run a logit or probit model on the `good_grade` outcome. Include all the independent variables (excluding the identifiers).  
+
+```{r}
+# Probit model on the 'good_grade' outcome
+gg_mod <- glm(good_grade ~ prevexp + wash_elite + eliteschool + lawprof + 
+                 fedattrn, data = dat, family=binomial("probit"))
+
+# Summarizing the results
+jtools::summ(gg_mod, model.fit = F, model.info=F)
+
+```
+
+#### (a) Interpret the model coefficients to the degree that you can. Are the coefficients in the right direction? Are they statistically significant?
+
+Although we cannot determine if these values are substantively significant at their current state we can determine the sign of the effect and if these values are statistically significant.
+
+The direction of the all the independent variables, save for *lawprof*, makes sense as there does seem to be a benefit to either having more experience, being a Washington Elite, going to an elite school or being a federal attorney. All of the previous variables are statistically significant at, at least, the 95% level with *prevexp* and *eliteschool* being statistically significant at the 99.9% confidence level. 
+
+*lawprof*, on the other hand, is not statistically significant for the aforementioned reasons of not having enough data points. 
+
+#### (b) Calculate the predicted probabilities manipulating your key independent variable (i.e. the one you hypothesized about). Please present results as a data frame or table. (Note that you must calculate these manually. Do not use the `obsval` package.) Please interpret the results.
+
+```{r}
+# Observed values, respondent went to an elite school
+gg_tmp = dat %>% 
+  mutate(eliteschool = 1)
+gg_elite = mean(predict(gg_mod, newdata = gg_tmp, type = "response"))
+
+# Observed values, respondent did not go to an elite school
+gg_tmp = dat %>% 
+  mutate(eliteschool = 0)
+gg_not_elite = mean(predict(gg_mod, newdata = gg_tmp, type = "response"))
+
+# Presenting the results as a tibble
+tibble('Elite Prediction' = gg_elite,
+       'Non-Elite Prediction' = gg_not_elite)
+```
+
+The predicted probability of getting a positive oral argument grade is ~72.29% for those who went to an elite law school, and ~58.72% for those who did not go to an elite law school. 
+
+#### (c) Calculate the discrete difference in the predicted probabilities. Please present in a data frame or table. Please interpret the results. 
+
+```{r}
+# Presenting the table as a tibble
+tibble('Elite Prediction' = gg_elite,
+       'Non-Elite Prediction' = gg_not_elite,
+       'Discrete Differences' = gg_elite - gg_not_elite)
+```
+
+Going to an elite school increases the likelihood of getting a positive oral argument grade by ~14.09%.
+
+#### (d) Simulate 95% confidence intervals around your predicted values using monte carlo simulation. You can use the `obsval` package or calculate the simulations manually. Please present results in a table or data.frame. Are the predicted probabilities statistically significant? 
+
+```{r}
+# Setting the seed for reproducibility
+set.seed(1994)
+
+# Estimating the model using obsval
+gg_obsval <- obsval(good_grade ~ prevexp + wash_elite + eliteschool + 
+                       lawprof + fedattrn, data = dat, 
+                  reg.model = "probit",
+                  n.draws = 1000,
+                  effect.var = 'eliteschool', 
+                  effect.vals = c(0,1),
+                  verbose=F)
+```
+
+```{r}
+# Getting the predicted values for going to an elite school
+gg_elite = gg_obsval$preds[,2]
+
+# Getting the predicted values for not going to an elite school
+gg_nelite = gg_obsval$preds[,1]
+
+# Setting the boundaries for an elite school
+gg_elite_bounds = quantile(gg_elite,probs = c(.025,.975))
+
+# Setting the boundaries for a non-elite school
+gg_nelite_bounds = quantile(gg_nelite,probs = c(.025,.975))
+
+# Presenting the data as a tibble 
+tibble('Type of School' = c('Elite', 'Non-Elite'),
+       'Lower' = c(gg_elite_bounds[1],gg_nelite_bounds[1]),
+       'Prediction' = c(mean(gg_elite), mean(gg_nelite)),
+       'Upper' = c(gg_elite_bounds[2], gg_nelite_bounds[2]))
+
+```
+Given that the lower and upper bounds of both predicted probabilities does not cross zero, this means that the predicted probabilities are statistically significant at a conventional levels (95% level).
+
+#### (e) Using the simulated values, calculate 95% confidence intervales for discrete difference in the predict probabilities using the simulated distributions. Please present results in a table or data.frame. Are the discrete differences statistically significant?
+
+```{r}
+# Getting the discrete difference between going to an elite school or not
+gg_diff = gg_obsval$preds[,2] - gg_obsval$preds[,1]
+
+# Setting the boundaries 
+gg_diff_bounds = quantile(gg_diff, probs = c(.025,.975))
+
+# Presenting the data as a tibble
+tibble(Lower = gg_diff_bounds[1],
+       'Discrete Difference' = mean(gg_diff), 
+       Upper = gg_diff_bounds[2])
+```
+
+Since the confidence interval does not cross zero this means that the discrete difference in the predicted probabilities are statistically significant at a conventional levels (95% level). 
+
+Because of this we can now confidentially say that the effect of going to an elite school is substantive: there is a ~13.79% difference in one's likelihood of getting a positive oral argument grade depending on whether they went to an elite school or not. 
+
+## (4) Using the oral argument data outlined above, run either an ordered logit/probit _or_ a multinomial logit model using `grade` as the outcome. Include all the independent variables (excluding the identifiers). 
+
+```{r}
+# Ordered probit model on the 'grade' outcome
+grade_mod <- MASS::polr(grade ~ prevexp + wash_elite + eliteschool + 
+                          lawprof + fedattrn, method = "probit", data = dat)
+
+# Summarizing the results
+broom::tidy(grade_mod, p.values = TRUE)
+
+```
+
+#### (a) Interpret the model coefficients to the degree that you can. Are the coefficients in the right direction? Are they statistically significant?
+
+Similar to the probit model we ran earlier, we can only comment on the sign of the effect as well as if the values are statistically significant. Once again all the variables, save for *lawprof* have a sign of the effect that makes sense (all are positive) and are statistically significant to varying degrees. 
+
+*preevexp* and *eliteschool* are statistically significant at the 99.9% confidence level whereas *wash_elite* is statistically significant at the 95% confidence level, and *fedattrn* is statistically significant at the 90% confidence level.
+
+*lawprof* is not statistically significant. 
+
+#### (b) Explain why you chose the model that you did (ordered or multinomial). What are the assumptions of the model. Can you think of a reason why the assumptions might be violated? 
+
+I chose to use a ordered probit model because although the difference between the grades may not be equal or easy to ascertain, the discrete outcomes do have an inherent order to them. A is greater than B which is greater than C which is greater than D. 
+
+The key assumptions of this model is the parallel regression assumptions: the idea that the effect of the coefficient is the same across all cutpoints. To translate this assumption to our model, this means that the effect of going to an elite school vs not going to an elite school is the same for each grade given.
+
+One way this assumption might be violated is if Justice Blackmun automatically gave attorneys who went to an elite school a passing grade while those who did not go to an elite school were scrutinized regularly. This would result in different effects across the grades given as there would be no elite school representation in the non-passing grades. 
+
+The effect of going to an elite school vs not going to an elite school would not be the same across any grade given.
+
+#### (c) Calculate the predicted probabilities manipulating your key independent variable (i.e. the one you hypothesized about). Please present results as a data frame or table. (Note that you must calculate these manually. Do not use the `obsval` package.) Please interpret the results.
+
+```{r}
+# Gathering the coefficients 
+G = grade_mod$coefficients
+
+# Gathering the cut points
+cuts = grade_mod$zeta
+
+# Extrating the data matrix used to estimate the model 
+X = model.matrix(grade_mod)[,-1] # drop the intercept
+```
+
+```{r}
+# Not going to an elite school
+X[,3] = 0
+
+# Observed values for A
+pr_a_not_elite = mean(1 - pnorm(cuts[3] - X%*%G))
+
+# Observed values for B
+pr_b_not_elite = mean(pnorm(cuts[3] - X%*%G) - pnorm(cuts[2] - X%*%G))
+
+# Observed values for C
+pr_c_not_elite = mean(pnorm(cuts[2] - X%*%G) - pnorm(cuts[1] - X%*%G))
+
+# Observed values for D
+pr_d_not_elite = mean(pnorm(cuts[1] - X%*%G))
+
+# Going to an elite school
+X[,3] = 1
+
+# Observed values for A
+pr_a_elite = mean(1 - pnorm(cuts[3] - X%*%G))
+
+# Observed values for B
+pr_b_elite = mean(pnorm(cuts[3] - X%*%G) - pnorm(cuts[2] - X%*%G))
+
+# Observed values for C
+pr_c_elite = mean(pnorm(cuts[2] - X%*%G) - pnorm(cuts[1] - X%*%G))
+
+# Observed values for D
+pr_d_elite = mean(pnorm(cuts[1] - X%*%G))
+
+# Presenting the results as a tibble
+tibble('Grade' = c('A', 'B', 'C', 'D'),
+       'Elite' = c(pr_a_elite, pr_b_elite, pr_c_elite, pr_d_elite), 
+       'Not Elite' = c(pr_a_not_elite, pr_b_not_elite, pr_c_not_elite, 
+                       pr_d_not_elite))
+
+```
+
+* The predicted probability of getting an 'A': 
+  * given that one went to an elite school is ~8.14%. 
+  * given that one did not go to an elite school is ~4.21%. 
+  
+* The predicted probability of getting a 'B': 
+  * given that one went to an elite school is ~63.85%. 
+  * given that one did not go to an elite school is ~55.31%. 
+
+* The predicted probability of getting a 'C': 
+  * given that one went to an elite school is ~26.72%. 
+  * given that one did not go to an elite school is ~37.44%. 
+
+* The predicted probability of getting a 'D': 
+  * given that one went to an elite school is ~1.29%. 
+  * given that one did not go to an elite school is ~3.03%. 
+
+Overall, the data still skews towards getting 'B' or a 'C' regardless of whether one went to an elite school or not. 
+
+#### (d) Calculate the discrete difference in the predicted probabilities. Please present results in a data frame or table. Please interpret the results. 
+
+```{r}
+# Calculating the discrete difference for each grade
+diff_a = pr_a_elite -  pr_a_not_elite
+diff_b = pr_b_elite -  pr_b_not_elite
+diff_c = pr_c_elite -  pr_c_not_elite
+diff_d = pr_d_elite -  pr_d_not_elite
+
+# Presenting the results as a tibble
+tibble('Grade' = c('A', 'B', 'C', 'D'),
+       'Discrete Differences' = c(diff_a, diff_b, diff_c, diff_d))
+
+```
+
+* The discrete difference in the predicted probability of getting an 'A' between going to an elite school vs not going to an elite school is ~3.92%.
+* The discrete difference in the predicted probability of getting a 'B' between going to an elite school vs not going to an elite school is ~8.54%.
+* The discrete difference in the predicted probability of getting a 'C' between going to an elite school vs not going to an elite school is approximately -10.73%.
+* The discrete difference in the predicted probability of getting a 'D' between going to an elite school vs not going to an elite school is approximately -1.74%.
+
+What this mean that going to an elite school increases the likelihood of getting an "A" by ~3.92%, and getting a 'B' by ~8.54%. Going to an elite school decreases the likelihood of getting a "C" by ~10.73% and getting a 'D' by ~1.74%.
+
+#### (e) Simulate 95% confidence intervals around your predicted values using monte carlo simulation. Use the `obsval` package to calculate. Please present results in a table or data.frame. Are the predicted probabilities statistically significant? 
+
+```{r}
+# Setting the seed for reproducibility
+set.seed(1994)
+
+# Estimating the model using obsval for an outcome of grade
+g_obsval <- obsval(grade ~ prevexp + wash_elite + eliteschool + 
+                       lawprof + fedattrn, data = dat, 
+                  reg.model = "oprobit", # Ordered probit 
+                  n.draws = 1000,
+                  effect.var = 'eliteschool', 
+                  effect.vals = c(0,1),
+                  verbose=F)
+```
+
+```{r}
+# Calculating the predicted probabilities using obsval - A
+a_not_elite = g_obsval$preds[,4,1] # not elite, grade "A"
+a_elite = g_obsval$preds[,4,2] # elite, grade "A"
+
+# Calculating the predicted probabilities using obsval - B
+b_not_elite = g_obsval$preds[,3,1] # not elite, grade "B"
+b_elite = g_obsval$preds[,3,2] # elite, grade "B"
+
+# Calculating the predicted probabilities using obsval - C
+c_not_elite = g_obsval$preds[,2,1] # not elite, grade "C"
+c_elite = g_obsval$preds[,2,2] # elite, grade "C"
+
+# Calculating the predicted probabilities using obsval - D
+d_not_elite = g_obsval$preds[,1,1] # not elite, grade "D"
+d_elite = g_obsval$preds[,1,2] # elite, grade "D"
+
+
+```
+
+```{r}
+## Elite ##
+# Summarizing the distribution - going to an elite school, grade "A"
+a_ebounds <- quantile(a_elite,probs=c(.025,.975))
+
+# Summarizing the distribution - going to an elite school, grade "B"
+b_ebounds <- quantile(b_elite,probs=c(.025,.975))
+
+# Summarizing the distribution - going to an elite school, grade "C"
+c_ebounds <- quantile(c_elite,probs=c(.025,.975))
+
+# Summarizing the distribution - going to an elite school, grade "D"
+d_ebounds <- quantile(d_elite,probs=c(.025,.975))
+
+# Presenting the results as a tibble
+tibble('Grade - Elite' = c('A', 'B', 'C', 'D'),
+       'Lower' = c(a_ebounds[1], b_ebounds[1], c_ebounds[1], d_ebounds[1]), 
+       'Prediction' = c(mean(a_elite), mean(b_elite), mean(c_elite), 
+                        mean(d_elite)),
+       'Upper' = c(a_ebounds[2], b_ebounds[2], c_ebounds[2], d_ebounds[2]))
+
+```
+
+```{r}
+## Non-Elite ##
+# Summarizing the distribution - not going to an elite school, grade "A"
+a_nebounds <- quantile(a_not_elite,probs=c(.025,.975))
+
+# Summarizing the distribution - not going to an elite school, grade "B"
+b_nebounds <- quantile(b_not_elite,probs=c(.025,.975))
+
+# Summarizing the distribution - not going to an elite school, grade "C"
+c_nebounds <- quantile(c_not_elite,probs=c(.025,.975))
+
+# Summarizing the distribution - not going to an elite school, grade "D"
+d_nebounds <- quantile(d_not_elite,probs=c(.025,.975))
+
+# Presenting the results as a tibble
+tibble('Grade - Non-Elite' = c('A', 'B', 'C', 'D'),
+       'Lower' = c(a_nebounds[1], b_nebounds[1], c_nebounds[1], 
+                   d_nebounds[1]), 
+       'Prediction' = c(mean(a_not_elite), mean(b_not_elite), 
+                        mean(c_not_elite), mean(d_not_elite)),
+       'Upper' = c(a_nebounds[2], b_nebounds[2], c_nebounds[2], 
+                   d_nebounds[2]))
+
+```
+
+Given that the lower and upper bounds of the predicted probabilities across all grades given and whether one went to an elite school or not, does not cross zero this means that the predicted probabilities are statistically significant at a conventional level (95% level).
+
+#### (f) Using the simulated values, calculate 95% confidence intervals around the discrete difference in the predict probabilities using the simulated distributions. Please present results in a table or data.frame. Are the discrete differences statistically significant?
+
+```{r}
+# Getting the discrete difference between going to an elite school or not
+# Split by school
+a_diff = a_elite - a_not_elite
+b_diff = b_elite - b_not_elite
+c_diff = c_elite - c_not_elite
+d_diff = d_elite - d_not_elite
+
+
+# Setting the boundaries - A
+a_diff_bounds = quantile(a_diff, probs = c(.025,.975))
+
+# Setting the boundaries - B
+b_diff_bounds = quantile(b_diff, probs = c(.025,.975))
+
+# Setting the boundaries - C
+c_diff_bounds = quantile(c_diff, probs = c(.025,.975))
+
+# Setting the boundaries - D
+d_diff_bounds = quantile(d_diff, probs = c(.025,.975))
+
+# Presenting the results as a tibble
+tibble('Grade' = c('A', 'B', 'C', 'D'),
+       'Lower' = c(a_diff_bounds[1], b_diff_bounds[1], c_diff_bounds[1], 
+                   d_diff_bounds[1]),
+       'Prediction' = c(mean(a_diff), mean(b_diff), mean(c_diff), 
+                        mean(d_diff)),
+       'Upper' = c(a_diff_bounds[2], b_diff_bounds[2], c_diff_bounds[2], 
+                   d_diff_bounds[2]))
+
+```
+
+Given that the lower and upper bounds of the discrete difference in the predict probabilities across all grades given, does not cross zero this means that the predicted probabilities are statistically significant at a conventional level (95% level). 
+
+It is also important to note that the upper bound of the grade 'D' does get very close to zero but it does not cross it. This just means that for the grade 'D' the value is the just barely statistically significant. 

@@ -1,0 +1,355 @@
+---
+title: "PPOL561 - HM 3 - Instrumental Variables"
+author: "Sahithi N Adari"
+output: pdf_document
+---
+
+```{r,include=F}
+require(tidyverse)
+require(AER) # for the ivreg() function
+library(car)
+knitr::opts_chunk$set(warning = F,error = F,message = F)
+```
+
+# Instructions 
+
+The following questions are drawn from the exercises from Chapter 9 in the _Real Stats_ textbook (pg. 318-324). Please completed the questions outlined below (which may or may not be adjusted from what appears in the textbook) using the data accompanying this file.  
+
+**Be sure to render your completed assignment as a `.pdf` (i.e. do not turn in a printed `.html` or word document) using R Markdown.**
+
+
+# Question 1 
+
+Does economic growth reduce the odds of civil conflict? Miguel, Satyanath, and Sergenti (2004) use an instrumental variables approach to assess the relationship between economic growth and civil war. They provide data (available in `RainiV.csv`) on 41 African countries from 1981 to 1999, including the variables listed in Table 9.7. (pg. 319)
+
+### (a)	Estimate a bivariate OLS model in which the occurrence of civil conflict is the dependent variable and lagged GDP growth is the independent variable. Comment on the results.
+
+```{r}
+# Read in the data
+civil_conflict <- read_csv('Data/RainIV.csv')
+
+```
+
+```{r}
+# Creating a simple OLS model of civil conflict and lagged GDP growth 
+cc_1 <- lm(InternalConflict ~ LaggedGDPGrowth, data = civil_conflict)
+
+# Outputting results
+broom::tidy(cc_1)
+
+```
+
+According to the bivariate OLS regression, a one unit increase in *LaggedGDPGrowth* is associated with a 8% decrease in the probability of observing $InternalConflict == 1$. This value is not statistically significant as the *p*-value is really high and, therefore, we cannot reject the null hypothesis at the 95% or even the 90% confidence level. 
+
+Given tha the *p*-value is so high, I am inclined to believe that this model is committing omitted variable bias or, at the very least, (given the chapter that this problem set is in) needs to include an instrumental variable. It is likely that there is another variable (perhaps *Mountains* or *LaggedRainfallGrowth*) that can explain the endogenity present in *LaggedGDPGrowth* but doesn't directly explain *InternalConflict*.
+
+#### (b) Add control variables for initial GDP, democracy, mountains, and ethnic and religious fractionalization to the model in part (a). Do these results establish a causal relationship between the economy and civil conflict?
+
+```{r}
+# Building from the above model by including the following control variables
+# InitialGDP, Democracy, Mountains, EthnicFrac and ReligiousFrac
+cc_2 <- lm(InternalConflict ~ LaggedGDPGrowth + 
+                              InitialGDP + 
+                              Democracy +
+                              Mountains + 
+                              EthnicFrac +
+                              ReligiousFrac, data = civil_conflict)
+
+# Outputting results
+broom::tidy(cc_2)
+
+```
+
+According to the bivariate OLS regression, along with other control variables, a one unit increase in *LaggedGDPGrowth* is associated with a 11% decrease in the probability of observing $InternalConflict == 1$. This value still is not statistically significant as the *p*-value is really high and, therefore, we cannot reject the null hypothesis at the 95% or even the 90% confidence level. 
+
+Despite including the above control variable, the model has made no difference in controlling for endogeneity therefore the model is still biased. 
+
+#### (c) Consider lagged rainfall growth as an instrument for lagged GDP growth. What are the two conditions needed for a good instrument? Describe whether and how we test the two conditions. Provide appropriate statistical results.
+
+The two condition needed for a good instrument are: the inclusion condition and the exclusion condition. The inclusion condition states that in order for *LaggedRainfallGrowth* to be a good instrument for *LaggedGDPGrowth*, the instrument must exert a meaningful effect in the first stage equation (where the endogenous variable is the dependent variable). 
+
+Of the two conditions, this is the easier one to test as we can just simply just add *LaggedRainfallGrowth* as the independent variable with *LaggedGDPGrowth* as the dependent variable, and check to see if that value is statistically significant. The statistical results of this condition is outputted below.
+
+```{r}
+## First Stage Equation ##
+# Testing one instrument
+instrument_1 <- lm(LaggedGDPGrowth ~ LaggedRainfallGrowth + 
+                                     InitialGDP + 
+                                     Democracy +
+                                     Mountains + 
+                                     EthnicFrac +
+                                     ReligiousFrac, data = civil_conflict)
+
+# Outputting results
+broom::tidy(instrument_1)
+
+```
+
+According to the above model, *LaggedRainfallGrowth* is statistically significant at the 95% confidence interval, which means it satisfies the inclusion condition. 
+
+The exclusion condition, ensuring that *LaggedRainfallGrowth* exerts no direct effect in the second-stage equation (estimating the outcome using $\hat{X}_1i$ instead of $X_1i$), cannot be empirically tested. 
+
+It is not easy to qualify, out right, if a variable is a strong instrument or not when it comes to the exclusion condition as the real world is rarely that black and white. I would assume that, in general, most instruments are weak instruments in the real world due to the fact there *might* exist some connection between the instrument variable and the dependent variable. 
+
+In this case, despite its possibility of a weak instrument, I'm inclined to believe it's unlikely that there exists a relationship between *LaggedRainfallGrowth* and *InternalConflict*. Rainfall should have no bearing on internal conflicts as wars have existed regardless of the outside climate. 
+
+As such, *LaggedRainfallGrowth* reflects no part of the error terms in the main equation and hence it could be excluded from it.
+
+
+#### (d)	Explain in your own words how instrumenting for GDP with rain could help us identify the causal effect of the economy on civil conflict. 
+
+The purpose of instrumenting for GDP with rain, is for *LaggedRainfallGrowth* to soak up some of the endogeneity present in *LaggedGDPGrowth* given that it, as a variable, should not affect the *InternalConflict*. This isn't omitted variable bias per say (given that omitted variable bias explains the bias *within the model*) but rather controlling for the bias present *within the independent variable* itself. Simply put, instruments control for variable bias not model bias. 
+
+#### (e) Use the dependent and independent variables from part (b), but now instrument for lagged GDP growth with lagged rainfall growth. Comment on the results.
+
+```{r}
+# Building from the model in part b
+# Including LaggedRainfallGrowth as an instrument variable on LaggedGDPGrowth
+cc_instrument_1 <- ivreg(InternalConflict ~ LaggedGDPGrowth + 
+                              InitialGDP + 
+                              Democracy +
+                              Mountains + 
+                              EthnicFrac +
+                              ReligiousFrac | LaggedRainfallGrowth + 
+                              InitialGDP + 
+                              Democracy +
+                              Mountains + 
+                              EthnicFrac +
+                              ReligiousFrac, data = civil_conflict)
+
+# Outputting results
+broom::tidy(cc_instrument_1)
+
+```
+
+According to this new model, by including the instrument variable *LaggedRainfallGrowth* to explain for *LaggedGDPGrowth*,  a one unit increase in *LaggedGDPGrowth* is associated with a 206% decrease in the probability of observing $InternalConflict == 1$. 
+
+Despite the inclusion of the instrument variable, this coefficient is still not statistically significant, therefore we still fail to reject the null at the 95% confidence interval. This example goes to show that despite what I surmised 2 questions above, *LaggedRainfallGrowth* appears to be a weak instrument given that this coefficient is still statistically insignificant. Either there actually exists no relationship between *LaggedGDPGrowth* and *InternalConflict* or there is still a variable in the error term that needs to be controlled for; either way it appears that the model is still biased.
+
+#### (f) Redo the 2SLS model in part (e), but this time use dummy variables to add country fixed effects. Comment on the quality of the instrument in the first stage and the results for the effect of lagged economic growth in the second stage. 
+
+```{r}
+## First Stage Equation ##
+# Testing one instrument and including a factor for countries
+instrument_2 <- lm(LaggedGDPGrowth ~ LaggedRainfallGrowth + 
+                                     InitialGDP + 
+                                     Democracy +
+                                     Mountains + 
+                                     EthnicFrac +
+                                     ReligiousFrac + 
+                                     factor(country_name), data = civil_conflict)
+
+# Outputting results
+broom::tidy(instrument_2)
+
+```
+
+When we factor for countries, our first stage equation shows that *LaggedRainfallGrowth* is still statistically significant at the 95% confidence interval, which means it satisfies the inclusion condition. 
+
+```{r}
+## Second Stage Equation ##
+# Including LaggedRainfallGrowth as an instrument variable on LaggedGDPGrowth
+# As well as factoring for different counrties
+cc_instrument_2 <- ivreg(InternalConflict ~ LaggedGDPGrowth + 
+                              InitialGDP + 
+                              Democracy +
+                              Mountains + 
+                              EthnicFrac +
+                              ReligiousFrac +
+                              factor(country_name)| LaggedRainfallGrowth + 
+                              InitialGDP + 
+                              Democracy +
+                              Mountains + 
+                              EthnicFrac +
+                              ReligiousFrac +
+                              factor(country_name), data = civil_conflict)
+
+# Outputting results
+broom::tidy(cc_instrument_2)
+
+```
+When we include the fixed effect of *country_name*, along with the instrument variable *LaggedRainfallGrowth* to explain for *LaggedGDPGrowth*, the model is finally statistically significant but only at the 90% confidence interval. We can finally reject the null hypothesis. A one unit increase in *LaggedGDPGrowth* is associated with a 285% decrease in the probability of observing $InternalConflict == 1$.
+
+Given that this model is still not statistically significant at the 95% confidence interval there is a still a minor amount of bias left in the model. Although these results are now statistically significant, I don't believe these values are substantively significant.
+
+# Question 2
+
+Does education reduce crime? If so, spending more on education could be a long-term tool in fight against crime. The file `inmates.csv` contains data used by Lochner and Moretti in their 2004 article in The American Economic Review on the effects of education on crime. Table 9.10 on pg. 322 describes the variables.
+
+#### (a) Run a linear probability model with prison as the dependent variable and education, age, and African American as independent variables. Make this a fixed effects model by including dummies for state of residence (state) and year of census data (year). Report and briefly describe the results. 
+
+```{r}
+# Read in the data
+education <- read_csv('Data/inmates.csv')
+
+```
+
+```{r}
+# LPM model with prison as the dependent variable
+# Education, age, and African American as independent variables
+# Including fixed effects of state of residence and year of census data 
+education_1 <- lm(prison ~ educ + age + AfAm + factor (state) + factor (year), 
+               data = education)
+
+# Outputting results
+broom::tidy(education_1)
+
+```
+According to the above LPM with fixed effects controlling for both *State* and *year*, a one until increase on: 
+
+* *educ* results in a 0.1% decrease in the probability of observing $prison == 1$.
+* *age* results in a 0.04% decrease in the probability of observing $prison == 1$. 
+* *AfAm* results in a 1.8% increase in the probability of observing $prison == 1$.
+
+Given that all 3 values are statistically significant, we can reject the null hypothesis at the 95% confidence interval. But, because the *p*-value is so large I have reason to doubt whether there is no bias present in the model. It's very suspicious to me that this relationship is, supposedly, this strong. 
+
+#### (b)	Based on the OLS results, can we causally conclude that increasing education will reduce crime? Why is it difficult to estimate the effect of education on criminal activity? 
+
+If we take these results at face value, there appears to be little to no relationship between *educ*, and *prison* given that the coefficient is so small. At its current state, the model presents a marginal difference in the probability of being in prison if the respondent had 1 year of school or had 20 years of schooling. 
+
+These results are incredibly strange in that the estimated coefficient on *educ* is so close to zero without actually being zero. Because of this, it is really difficult to estimate the effect of education on criminal activity. I'm more inclined to believe that the *educ* variable is likely to be biased itself/needs to include an instrument variable to remove some endogeneity. 
+
+There are probably other explanatory variables (household income, educational attainment of the parents, extra circular involvement, etc.) that can soak up the endogeneity found in *educ* without directly affecting *prison*. The exclusion of the instrument variable can explain why the relationship between education and crime is difficult to parse.
+
+#### (c)	Lochner and Moretti use 2SLS to improve their OLS estimates. They use changes in compulsory attendance laws (set by each state) as an instrument. The variable ca9 indicates that compulsory schooling is equal to 9 years, ca10 indicates that compulsory schooling is equal to 10 years, and ca11 is 11 or more years. The control group is 8 or fewer years. Does this set of instruments satisfy the two conditions for good instruments? 
+
+In order to check if the set of instruments satisfy the two conditions for good instruments, we need to statistically check the inclusion condition and conceptually check the exclusion condition. 
+
+When we have multiple instruments the best way to access whether the instruments adequately predict the endogenous variable is to use an F-Test for the null hypothesis that the coefficients on all instruments in the first stage equal zero. The rule of thumb is that our F-statistic should be greater than 10. 
+
+```{r}
+## First Stage Equation ##
+# Testing multiple instruments by using an f-test
+
+# Unrestricted model 
+unres_instrument_3 <- lm(educ ~ ca9 + ca10 + ca11 + age + AfAm + factor (state) + 
+                           factor (year), data = education)
+
+# Calculating the f-stat
+fstat <- linearHypothesis(unres_instrument_3, 
+                          hypothesis.matrix = c("ca9 = 0", "ca10 = 0", "ca11 = 0"))
+
+# Outputting the results
+broom::tidy(fstat)
+
+```
+Given that our f-stat here is 53.05251 and is well above 10, we can reject the null hypothesis that $c9 = c10 = c11 = 0$. Therefore we can accept that at least one instrument can help explain $X_1i$ or *educ*. 
+
+In order to determine if *c9*, *c10*, and *c11* are good instruments, we need conceptually talk about whether the set of those instrument variables exert no direct effect on crime. And this is easy enough to do as the state policy of compulsory education, should exert no effect on crime in the area. That is to say, a potential criminal does not commit a crime just because the state in which they live in had a compulsory education of 9, 10, or 11 years. 
+
+It's not like a criminal is thinking "Let me commit a crime because my state only requires me to get 10 years of schooling!" In essence, *c9*, *c10*, and *c11* reflects no part of the error terms in the main equation and hence it could be excluded from it.
+
+Based on the analysis above, I feel confident in claiming that the set of instruments satisfy the two conditions for good instruments. 
+
+#### (d) Estimate a 2SLS model using the instruments just described and the control variables from the OLS model above (including state and year dummy variables). Briefly explain the results. 
+
+```{r}
+# Building from the model in part a
+# Including ca9, ca10, and ca11 as instrument variables on educ
+education_instrument_1 <- ivreg(prison ~ educ + age + AfAm + factor (state) + 
+                                  factor (year) | ca9 + ca10 + ca11 + age + 
+                                  AfAm + factor (state) + factor (year), data = education)
+
+# Outputting results
+broom::tidy(education_instrument_1)
+
+```
+According to the above LPM with fixed effects controlling for both *state* and *year* and an instrument variables, a one unit increase on the year of schooling results in a 0.4% decrease in the probability of observing $prison == 1$. Unlike the original model, this value is only statistically significant at the 90% confidence interval meaning that we could reject the null hypothesis but only barely.
+
+Although this *p*-value is far more reasonable than the one in the original model, and it does appear that compulsory education is a good instrument variable for *educ*, I'm still not certain if these result are substantively significant because of the coefficient. A 0.4% difference is barely anything especially given that the intercept is 6.76%. This means that, with 12 years of schooling, the probability of observing $prison == 1$ becomes 1.96%.
+
+#### (e)	2SLS is known for being less precise than OLS. Is that true here? Is this a problem for the analysis in this case? Why or why not? 
+
+If we compare the standard errors on education from the original model in part a (1.215981e-04) to the one above (0.0021706937) we can see that the 2SLS model is 20 times less precise. The less precise the estimate are, the greater the *p*-value is; the greater the *p*-value is, the weaker the claim is that education causally explain crime. 
+
+Another way to think about this, is to look at the standard errors in the first stage equation. If there is a good fit at the first stage, this will lead to less precision in the second stage as the equation for variance in a 2SLS model has the first stage variance as a denominator. Because the *p*-value in the first stage equation is so low (3.156514e-34) we can only surmise that a) the variance was equally as low and b) the first stage equation was an incredibly good fit. There is an inverse relationship between the variance in first stage equation and the second stage equation.
+
+Regardless of the explanation, precision is a problem in this model due to the above reasons.
+
+# Question 3 
+
+Does economic growth lead to democracy? This question is at the heart of our understanding of how politics and the economy interact. The answer also exerts huge influence on policy: if we believe economic growth leads to democracy, then we may be more willing to pursue economic growth first and let democracy come later. If economic growth does not lead to democracy, then perhaps economic sanctions or other tools may make sense if we wish to promote democracy. Acemoglu, Johnson, Robinson, and Yared (2008) analyzed this question by using data on democracy and GDP growth from 1960 to 2000. The data is in the form of five-year panels one observation for each country every five years. Table 9.11 on page 323 describes the variables. The data is located in `democracy_income.csv`. (Note that `log_gdp` and `worldincome` have been lagged by one year)
+
+
+#### (a) Are countries with higher income per capita more democratic? Run a pooled regression model with democracy (`democracy_fh`) as the dependent variable and logged GDP per capita (`log_gdp`) as the independent variable. Describe the results. What are the concerns with this model?
+
+```{r}
+# Read in the data
+democracy <- read_csv('Data/democracy_income.csv')
+
+```
+
+```{r}
+# Creating a pooled regression model
+# Democracy as the dependent and logged GDP as the independent
+democracy_1 <- lm(democracy_fh ~ log_gdp, data = democracy)
+
+# Outputting results
+broom::tidy(democracy_1)
+
+```
+According to this pooled regression model, a one unit increase on *log_gdp* results in a 0.233 increase in *democracy_fh*. Given that the *p*-values is extremely low, this value is statistically significant and we can, therefore, reject the null hypothesis at a 95% confidence interval. 
+
+Similar to the responses above, I have concerns with this model given that the *p*-value is so low. I'm inclined to believe there is bias found within the model as well as within *log_gdp*. Looking at the codebook found in the textbook we can see that there are two variables (*YearOrder* and *CountryCode*) that are likely to be fixed effects in the model as well as another variable (*worldincome*) that is likely to be an instrument variable on *log_gdp*. 
+
+Only when we are able to control for those sources of bias, will we, hopefully, get a statistically and substantively significant value. Until then, the current model, as it stands, is not substantively significant. 
+
+#### (b) Rerun the model from part (a), but now include fixed effects for year and country. Describe the model. How does including these fixed effects change the results?
+
+```{r}
+# Creating a pooled regression model
+# Including YearOrder and CountryCode as fixed effects
+democracy_2 <- lm(democracy_fh ~ log_gdp +factor(CountryCode) +
+                    factor(YearOrder), data = democracy)
+
+# Outputting results
+broom::tidy(democracy_2)
+
+```
+When we rerun the model from part a with fixed effects included, the coefficient on *log_gdp* changes to 0.0384. Specifically, a one unit increase on *log_gdp* results in a 0.0384 increase in *democracy_fh*. This value is now, **not** statistically significant at the 95% or 90% confidence interval and therefore, we fail to reject the null. 
+
+Althought we have now controlled for any bias that could be found within the model itself (by controlled for fixed effects) we still have not controlled for any endogeneity that could be present within *log_gdp*. This model is still biased in its current state and despite the change in results, it is a better model than the one found in part a. 
+
+I also would like to note that this is also an example of simpson's paradox--where the trend only appears when split amongst different groups (i.e. countries) but then disappears when taken together. Only when we split by country, do we see that *log_gdp* is not correlated with *democracy_fh*; the average trend is entirely different the trend on an individual country basis.
+
+#### (c) To better establish causality, the authors use 2SLS. One of the instruments that they use is changes in the income of trading partners (worldincome). They theorize that the income of a given country’s trading partners should predict its own GDP but should not directly affect the level of democracy in the country. Discuss the viability of this instrument with specific reference to the conditions that instruments must satisfy. Provide evidence as appropriate.
+
+To beat a dead horse, the two condition this instrument must satisfy are the inclusion condition as well as the exclusion condition.
+
+```{r}
+## First Stage Equation ##
+# Testing one instrument
+democracy_instrument_1 <- lm(log_gdp ~ worldincome +factor(CountryCode) +
+                    factor(YearOrder), data = democracy)
+
+# Outputting results
+broom::tidy(democracy_instrument_1)
+```
+Since the coefficent on *worldincome* is statistically significant at the 95% confidence interval, this instrument variable passes the first condition. 
+
+For the second condition, the exclusion condition, I would make the argument that the trading partner's GDP would have a bearing on the democracy measure of the country in question with a few notable exceptions (namely China). 
+
+If there already exists a positive association between *log_gdp* and *democracy_fh* then wouldn't it follow that the country with large *worldincome* are likely to be democracies themselves? It feels like there has to be a positive association between free trade and democracies especially if we exclude nations that are single resource rich and are rent seeking. I don't think e that *worldincome* is a good instrument variable to explain the endogeneity presnent in *log_gdp* because of association between trade and democracy. 
+
+#### (d) Run a 2SLS model that uses worldincome as an instrument for logged GDP. Compare the coefficient and standard error to the OLS and panel data results.
+
+```{r}
+## Second Stage Equation ##
+# Including worldincome as an instrument variable on log_gdp
+# Including the fixed effects variables as well
+democracy_instrument_2 <- ivreg(democracy_fh ~ log_gdp  + factor(CountryCode) + 
+                                  factor(YearOrder) | worldincome + 
+                                  factor(CountryCode) + factor(YearOrder), 
+                                data = democracy)
+
+# Outputting results
+broom::tidy(democracy_instrument_2)
+
+```
+When the model controls for fixed effect as well as the instrument variable, the coefficient on *log_gdp* changes drastically. Whereas previously this was a positive relationship, a one unit change on *log_gdp* now results in a 0.2129 decrease in *democracy_fh*. This value is now somewhat statistically significant meaning that we can reject the null hypothesis at the 90% confidence interval but not at 95%. 
+
+As expected the standard errors, in this model (0.1164) are much larger than the standard errors found in the original model (0.07352). This is primarily due in part to the fit of the first stage-regression. As I explained earlier, because the first stage variance is a denominator in the calculation of variance at the second stage, these two variances are inverses of each other. Much like our earlier discussion on precision, this 2SLS model is also incredibly imprecise.
+
+
+
+

@@ -1,0 +1,260 @@
+---
+title: "PPOL561 - HM 6 - Synthetic Control"
+author: "Sahithi N Adari"
+output: pdf_document
+---
+
+```{r,include=F}
+knitr::opts_chunk$set(warning = F,error = F,message = F)
+require(tidyverse)
+require(tidysynth)
+library(ggplot2)
+library(gghighlight)
+```
+
+Please answer the following questions using the provided data `texas.csv`. There are a total of 16 points available for this assignment. 
+
+The following study/data is pulled from Cornwell and Cunningham 2016. In 1980, the Texas Department of Corrections (TDC) lost a major civil action lawsuit. The case argued that TDC was engaging in unconstitutional practices related to overcrowding and other prison conditions. Texas lost the case, and as a result, the courts placed constraints on the number of inmates who could be placed in cells. To ensure compliance, TDC was put under court supervision until 2003. In 1993, Texas Governor Ann Richards began building a lot of prisons. Under Richards, state legislators approved $1 billion for prison construction, which would double the state’s ability to imprison people within three years.
+
+What was the effect of building so many prisons? We'll use Texas's expansion of it's operational capacity starting in 1993 (and continuing on until 1995) as a natural experiment to examine the effect of prison expansion on incarceration rates. 
+
+To explore this question, we'll analyze the following data: 
+
+```{r}
+# Reading in the data
+texas = read_csv('texas.csv')
+```
+
+
+Below is a brief description of the variables.
+
+- `statefip`: state id code
+- `state`: state name
+- `year`: year
+- `bmprison`: black male prison population
+- `wmprison`: white male prison population
+- `bmpop`: black male population
+- `wmpop`: white male population
+- `crack`: crack consumption index (higher $\rightarrow$ consume more crack)
+- `alcohol`: alcohol consumption index (higher $\rightarrow$ consume more alcohol)
+- `income`: median income
+- `poverty`: poverty level (%)
+- `black`: black population
+- `perc1519`: percent of the population between the age of 15 - 19. 
+- `aidscapita`: Aid mortality per 100k people. 
+- `parole`: number of paroles 
+- `probation`: number of probation
+- `capacity_rated`: prison capacity (how many prisoners are held)
+- `capacity_operational`: prison operational capacity (how many prisoners can be held given operational constraints)
+- `capacity_design`: prison design capacity (how many prisoners can be held)
+- `bmprate`: black male prison rate
+- `wmprate`: white male prison rate
+
+# Question 1
+
+(_2 point_)
+
+Plot the black male prison incarceration rate `bmprison` over time for all states in the data. Does Texas's rate of incarceration stand out from the other states? (Tip: use `gghighlight` to highlight specific data values in a ggplot.)
+
+```{r}
+# Creating a ggplot for the black male incarceration rate by state
+ggplot(texas, aes(x = year, y = bmprison, color = state)) + 
+  geom_line() +
+    gghighlight(state == "Texas") + # Highlighting Texas's rate of incarceration
+  labs (
+    title = "Black Incarceration Rate Over Time By State") + 
+  xlab("Year") +
+  ylab("Black Incarceration Rate")
+  
+```
+
+As we can see in the graph above, Texas's incarceration rate does stand out from the other states. There appears to be a massive uptick in incarceration rates from 1993 - 1995 (right around the time the state started building more prisons) with the rate plateauing again from 1995 - 2000. 
+
+# Question 2
+
+(_2 points_)
+
+Construct a synthetic control for Texas black male population incarcerated `bmprison` after the large prison expansion that began in 1993. Use all the other states (except Texas) as the donor population. To tune the weights to generate the synthetic control, use the following pre-treatment data values:
+
+- average `bmprison` levels for the years 1988 and 1990 - 1992,
+- average `alcohol` & `perc1519` for the year 1990,
+- average `aidscapita` for the years 1990 and 1991,
+- average `black` population for the years 1990:1992.
+
+The weights should be generated using the 1985 through 1993 period. 
+
+```{r}
+# Initializing the synthetic control object
+sc_object <- texas %>% synthetic_control(outcome = bmprison, # outcome
+                    unit = state, # unit index in the panel data
+                    time = year, # time index in the panel data
+                    i_unit = "Texas", # unit where the intervention occurred
+                    i_time = 1993, # time period when the intervention occurred
+                    generate_placebos=T) # generate placebo synthetic controls (for inference)
+```
+
+```{r}
+# Tuning the weight using pre-treatment
+sc_predictors <- sc_object %>% 
+  # Averaging 'bmprison' for 1988
+  generate_predictor(time_window = 1988,
+                     bmprison_1988 = mean(bmprison, na.rm = T))%>%
+  # Averaging 'alcohol' & 'perc1519' for 1990
+  generate_predictor(time_window = 1990,
+                     avg_alcohol = mean(alcohol, na.rm = T),
+                     avg_perc = mean(perc1519, na.rm = T)) %>%
+  # Averaging 'aidcapita' for 1990 - 1991
+  generate_predictor(time_window = 1990:1991,
+                     avg_aidscapita = mean(aidscapita, na.rm = T)) %>%
+  # Averaging 'bmprison' and 'black' from 1990- 1992
+  generate_predictor(time_window = 1990:1992,
+                     bmprison_90s = mean(bmprison, na.rm = T),
+                     avg_black = mean(black, na.rm = T))
+```
+
+```{r}
+# Generating weights and synthetic control
+texas_sc <- sc_predictors %>% 
+  # Generating the fitted weights for the synthetic control
+        # Setting the time to use in the optimization task
+  generate_weights(optimization_window = 1985:1993, 
+                   # set optimizer options
+                   margin_ipop = .02,sigf_ipop = 7,bound_ipop = 6) %>%
+  # Generating the synthetic control
+  generate_control()
+```
+
+# Question 3
+
+(_2 point_)
+
+Plot the trends of the synthetic and observed Texas. Does the synthetic Texas align with the observed Texas in the pre-treatment period? Comment on what this tells us. In addition, look at the balance between the observed and synthetic Texas. Are they largely comparable? 
+
+```{r}
+# Plotting the trends of the synthetic and observed Texas data
+texas_sc %>% plot_trends()
+```
+Yes, synthetic Texas aligns with observed Texas in the pre-treatment period showing that the jump in the data, in 1993, wasn't just part of the general trend in incarceration rates but because of the "treatment" of building more prisons in 1993. This is especially evident if we compare the incarceration rate (the slope) from 1995 onward with the synthetic slope from that time period as it appears to be fairly similar. 
+
+```{r}
+# Creating a balance table
+texas_sc %>% grab_balance_table()
+```
+Synthetic Texas and observed Texas are not equally balanced across the different pre-treatment variables generated. Specifically ther are large difference in data between `bmprison_1988`, `avg_aidscapita` and `bmprison_90s` meaning that these imbalanced classes might lead to poor predictive performance on the synthetic control's part.
+
+# Question 4
+
+(_2 point_)
+
+Plot the difference in trends between the synthetic and observed Texas in the post-treatment period. Comment the the impact that the investment in prisons had on the number of incarcerated black males. 
+
+```{r}
+# Plotting the difference in trends between synthetic and observed Texas
+# in the post-treatment period
+texas_sc %>% plot_differences(time_window = 1993:2000)
+```
+
+If we remember from the first graph of the trends we saw that the largest jump in incarcerations of Black males happened from 1993 - 1995 withe the incarceration rate, roughly, swinging back down to the post-treatment rate  of pre-1993, from 1995 onwards. As such, I would say that the impact of the investment in prisons resulted in almost 25,000 extra Black, male inmates.
+
+# Question 5
+
+(_2 point_)
+
+Examine the weights used to generate the synthetic control. Which donor states is the synthetic Texas generated from? Which variables were most important to generating the synthetic control? 
+
+```{r}
+# Plotting the weights of the donor pool
+texas_sc %>% plot_weights()
+```
+The donor states that synthetic Texas was generated from were Florida, New York and Ohio while the most important variable was `bmprison90s`. Yes `bmprison_1988` and `avg_black` were important as well but there is such a large gap of importance between `bmprison90s` and `bmprison_1988` with `bmprison90s` given a little more than 80% of the total weight. 
+
+# Question 6
+
+(_2 point_)
+
+Plot the placebo synthetic controls and plot the ratio of the pre/post MSPE. Is the trends observed in Texas an unique or does it follow patterns similar to the other placebo synthetic controls? 
+
+```{r}
+# Plotting the placebos
+texas_sc %>% plot_placebos()
+```
+
+When we just plot the placebo synthetic controls we can see that the trends observered in Texas are uniquely Texas as there are no huge jumps skewing upwards. But, if we include trends that are skewing downward--that is to say states, after 1993, are incarcerating fewer Black males--there are a couple of state that seem to have a similar downward trend.
+
+
+```{r}
+# Plotting the MSPE
+texas_sc %>% plot_mspe_ratio()
+```
+
+According the ratio of the Pre/Post MSPE, Illinois has the greatest difference between the pre- and post- intervention trend; a difference that is even higher than Texas. Given these results, I can easily see Illinois representing the placebo synthetic control line that slopes all the way downwards.
+
+# Question 7
+
+(_4 points_)
+
+How sensitive is the synthetic control to the inputs you used to train the weights? If you dropped certain inputs, does the results change? What if you used different variables to train the weights? Experiment with different inputs for the synthetic control. Try different variables as inputs, change the time ranges that you aggregate the variables across, and comment on what you find. ( _Specifically, speak to how the synthetic control fit by looking at the pre-treatment fit and the balance of the synthetic and observed unit. Also you can explore the placebos synth controls to see how sensitive our definition of statistical significance is to these decisions_ ).
+
+```{r}
+# Initializing the synthetic control object for experimentation
+sc_experiment <- texas %>% synthetic_control(outcome = bmprison, # outcome
+                    unit = state, # unit index in the panel data
+                    time = year, # time index in the panel data
+                    i_unit = "Texas", # unit where the intervention occurred
+                    i_time = 1993, # time period when the intervention occurred
+                    generate_placebos=T) # generate placebo synthetic controls
+```
+
+```{r}
+# Tuning the weight using pre-treatment for the experimental dataset
+experiment_predictors <- sc_experiment %>% 
+  # Averaging 'bmprison' for 1988
+  generate_predictor(time_window = 1988,
+                     bmprison_1988 = mean(bmprison, na.rm = T))%>%
+  # # Averaging the 'parole' and 'probation' rates in 1992
+  generate_predictor(time_window = 1992,
+                     avg_parole = mean(parole, na.rm = TRUE)) %>%
+                     # avg_probation = mean(probation, na.rm = TRUE)) %>%
+  # Averaging 'bmprison', alcohol, crack, and income from 1990- 1992
+  generate_predictor(time_window = 1990:1992,
+                     bmprison_90s = mean(bmprison, na.rm = T),
+                     avg_alcohol = mean(alcohol, na.rm = T),
+                     avg_crack = mean(crack, na.rm = T))
+                     # avg_income = mean(income, na.rm = T))
+```
+
+```{r}
+# Generating weights and synthetic control
+texas_experiment <- experiment_predictors %>% 
+  # Generating the fitted weights for the synthetic control
+        # Setting the time to use in the optimization task
+  generate_weights(optimization_window = 1985:1993, 
+                   # set optimizer options
+                   margin_ipop = .02,sigf_ipop = 7,bound_ipop = 6) %>%
+  # Generating the synthetic control
+  generate_control()
+```
+
+```{r}
+# Plotting the trends of the synthetic and observed Texas data
+texas_experiment %>% plot_trends()
+```
+
+```{r}
+# Creating a balance table
+texas_experiment %>% grab_balance_table()
+```
+
+```{r}
+# Plotting the placebos
+texas_experiment %>% plot_placebos()
+```
+
+```{r}
+# Plotting the MSPE
+texas_experiment %>% plot_mspe_ratio()
+```
+
+So in the above experimentation I changed up the pre-treatment variable as well as experimenting with different time periods. When I included both `avg_income` (from 1990 - 1992) and `avg_probations` the most obvious difference was in the MSPE plots as well as the balance test. Not only were those two values massively imbalanced between synthetic and control Texas, but Florida and Texas were neck-and-neck when it came to the MSPE ratio. 
+
+In the second experiment, I removed the two largest imbalanced variables and, once again, the placebo values dramatically changed. This time, as we can see above, Florida drops down to the 4th spot with Georgia shooting up to second place. What these experiment show is that the synthetic control creation completely depends upon the pre-treatment fit and the balance of the variables themselves. The more variables we use (as well as the longer time series) the better the fit is. 

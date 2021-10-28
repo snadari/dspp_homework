@@ -1,0 +1,224 @@
+---
+title: "PPOL561 - HM 2 - Panel Data & DID"
+author: "Sahithi N Adari"
+output: pdf_document
+---
+
+```{r,include=F}
+knitr::opts_chunk$set(warning = F,error = F,message = F)
+
+# Load packages
+require(tidyverse)
+require(plm)
+library(ggplot2)
+```
+
+# Instructions 
+
+The following questions are drawn from the exercises from Chapter 8 in the _Real Stats_ textbook (pg. 280-286). Please completed the questions outlined below (which may or may not be adjusted from what appears in the textbook). 
+
+
+# Question 1 
+(Appears as _Exercise No. 2_ in the text; see the text for problem description)
+
+For the following question, we'll use **Peace Corp Data**. The data (`PeaceCorpsHW.csv`) is accompanying this assignment. The data contains the following variables. 
+
+| Variable       | Description                                               | 
+|----------------|-----------------------------------------------------------|
+| `state`        | State name                                                |
+| `year`         | Year                                                      |
+| `stateshort`   | First three letters of the state name                     |
+| `appspc`       | Applications to the Peace Corps from each state per capita|
+| `unemployrate` | State unemployment rate                                   |
+
+Note that year dummies (`yr1`, `yr2`, ..., etc.) have also been generated. 
+
+
+## (a) Before looking at the data, what relationship do you hypothesize between these two variables? Explain your hypothesis.
+
+My gut is telling me that young people are more likely to pursue public service when jobs are not scarce. My assumption is that when jobs are aplenty, young people are more likely to pursue "risky" or low paying jobs with the confidence that if their situation changes, they can easily land a more secure position. But, on the other hand, I wonder if young people pursue public service when unemployment is high in order to ride out current economic conditions. 
+
+But also, given that this question appears in the chapter regarding panel data, I am also going to assume that this relationship actually depends on which state you are applying from.
+
+## (b) Run a pooled regression of Peace Corps applicants per capita on the state unemployment rate and year dummies. Describe and critique the results.
+
+```{r}
+# Read in the data
+peace <- read_csv('PeaceCorpsHW.csv')
+
+```
+
+```{r}
+# Pooled regression of Peace Corps applicants per capita 
+# On the state unemployment rate and year dummies
+peace_1 <- lm(appspc ~ unemployrate + factor(year), data = peace)
+
+# Outputting results
+jtools::summ(peace_1, model.info = FALSE, model.fit = FALSE)
+```
+
+According to the pooled regression, a one unit increase in the unemployment rate results in a 1.11 increase in the number of Peace Corp applications. This value is not statistically significant as the p-value is really high and, therefore, we cannot reject the null hypothesis at the 95% or even the 90% confidence level. Even when we factor for year, the values are not statistically significant.
+
+Given tha the p-value is so high, I am inclined to believe that this model is committing omitted variable bias or, at the very least, needs to be split by state in order to control for fixed effects. Since this dataset includes the unemployment rate per state, it is likely that each state has a different baseline level of Peace Corp applications and these levels of applications are dependent on the unemployment rate per state.
+
+## (c) Plot the relationship between unemployment and Peace Corps applications with the state of the observation labeled. What sticks out? How may this impact the estimate on unemployment rate in the pooled regression above? Create a scatterplot without the outlier and comment briefly on the difference.
+
+> **Tip**: using `ggplot2`, see the documentation for `geom_label()` to produce a scatter plot with labels.  
+
+```{r}
+# ggplot of the relationship between state unemployment rate and peace corp applications
+ggplot(peace, aes(unemployrate, appspc, color = state, label = state)) + 
+  geom_point() +
+  labs(title = "Relationship between State Unemployment Rate & Peace Corp Applications", 
+       subtitle = "Per State", 
+       x = "Unemployment Rate", 
+       y= "Number of Applications") +
+  geom_label() + 
+  # Removing the legend
+  theme(legend.position = "none", plot.title = element_text(size = 12)) 
+```
+
+The output of this first graph is really messy given that the applications coming from DC are so much higher than the other 50 states. DC here is an outlier and is skewing the pooled data upwards. Once we remove the DC data we should, hypothetically, be able to get a better understand of the relationship between unemployment rate and peace corp applications on a per state case visually. 
+
+```{r}
+# ggplot of the relationship between state unemployment rate and peace corp applications
+# subsetting to remove DC data
+ggplot(subset(peace, state !=  "DISTRICT OF COLUMBIA"), 
+       aes(unemployrate, appspc, color = state, label = state)) + 
+  geom_point() +
+  labs(title = "Relationship between State Unemployment Rate & Peace Corp Applications", 
+       subtitle = "Per State, Removed DC", 
+       x = "Unemployment Rate", 
+       y= "Number of Applications") +
+  geom_label() + 
+  # Removing the legend
+  theme(legend.position = "none", plot.title = element_text(size = 12))
+```
+
+Even though we took out DC in order to get a better understanding of the data, it is still incredibly hard to determine what the overall relationship is between unemployment rate and the number of peace corp applications, much less what that relationship looks like on a state-by-state basis. This model is not clear at all.
+
+## (d) Run the pooled model from above without the outlier. Comment briefly on the results.
+
+```{r}
+# Pooled regression of Peace Corps applicants per capita 
+# On the state unemployment rate removing DC
+peace_2 <- lm(appspc ~ unemployrate + factor(year), 
+              data = subset(peace, state !=  "DISTRICT OF COLUMBIA"))
+
+# Outputting results
+jtools::summ(peace_2, model.info = FALSE, model.fit = FALSE)
+
+```
+According to the pooled regression, where we factor for *year*, a one unit increase in the unemployment rate results in a 1.96 decrease in the number of Peace Corp applications. This value is now statistically significant at the 95% confidence level. One important difference with this model from that of part b, is that once we removed DC from the dataset, the coefficient on *unemployment* went from positive to negative.
+
+Although this pooled regressions indicates a better relationship between unemployment rate and Peace Corp applications, I'm still inclined to believe there is endogeneity within this relationship given that there are a number of state specific factors (total population, working age population, median/mean household income, overall total education, number of jobs) that is correlated with the state unemployment rate and also allows for different baselines per state. 
+
+The unemployment rate in California is not the same as the unemployment rate in South Dakota given that there are a myriad of different factors that could be affecting both. 
+
+## (e) Run a two-way fixed effect model without the outlier using the LSDV approach. Do your results change from the pooled analysis? Which results are preferable?
+
+```{r}
+# Two-way fixed effect model of Peace Corps applicants per capita 
+# On the state unemployment rate removing DC
+peace_3 <- lm(appspc ~ unemployrate + factor(state) + factor (year), 
+              data = subset(peace, state !=  "DISTRICT OF COLUMBIA"))
+
+# Outputting results
+jtools::summ(peace_3, model.info = FALSE, model.fit = FALSE)
+
+```
+According to the two-way fixed effect model, and remove outliers, a one unit increase in the unemployment rate results in a  0.81 increase in the number of Peace Corp applications. Although this value is not statistically significant at the 95% confidence interval, this value is statistically significant at the 90% confidence interval.
+
+Although this output is far larger than the the output in part d, these results are preferable because of the omitted variable bias. Specifically the "ommitted variable" here being that there is a different baseline for each state as to the relationship of the unemployment rate to Peace Corp applications.
+
+Yes the number of applicants increases as the unemployment rate increases, but the actual number of applicants wildly differs from state to state. As we can see in the results, Vermont has a far larger coefficient on the number of Peace Corp applications, in reference to Alabama, than Mississippi does, in reference to Alabama. A 0.81 increase in Vermont is not the same as a 0.81 increase in Mississippi. Because of this we are also able to get a state-by-state understanding of this relationship. 
+
+## (f) Run a two-way fixed effect model without the outlier using the demean approach via the `plm` package in `R`. Compare with LSDV results.
+
+```{r}
+# Pooled regression of Peace Corps applicants per capita 
+# On the state unemployment rate removing DC
+peace_4 <- plm(appspc ~ unemployrate, 
+               data = subset(peace, state !=  "DISTRICT OF COLUMBIA"), 
+               index = c("state", "year"), model = "within", effect = "twoways")
+
+# Outputting results
+broom::tidy(peace_4, model.info = FALSE, model.fit = FALSE)
+
+```
+
+When we run a two-way fixed effect model without the outlier using the demean approach, the coefficient estimates on *unemployment* is the same as the above. The biggest difference between the two models is that with the LSDV approach, we can determine what the difference in the relationship is on a state-by-state or year-by-year basis. With the demean approach all we can see the *unemployment* coefficient. 
+
+# Question 2
+(Appears as _Exercise No. 4_ in the text; see the text for problem description)
+
+For the following question, we'll use **HOPE Scholarship Data**. The data (`HOPE_HW.csv`) is accompanying this assignment. The data contains the following variables. 
+
+| Variable       | Description                                                     | 
+|----------------|-----------------------------------------------------------------|
+| `inCollege`    | Dummy variable: 1 if individual is in college, 0 otherwise      |
+| `AfterGeorgia` | Dummy variable: 1 for Georgia residents after 1992, 0 otherwise |
+| `Georgia`      | Dummy variable: 1 if individual is Georgia resident, 0 otherwise|
+| `After`        | Dummy variable: 1 for observations after 1992, 0 otherwise      |
+| `Age`          | Individual age                                                  |
+| `Age18`        | Dummy variable: 1 if individual is 18 years old, 0 otherwise    |
+| `Black`        | Dummy variable: 1 if individual is African-American, 0 otherwise|
+| `StateCode`    | State Codes                                                     |
+| `Year`         | Year of observation                                             | 
+| `Weight`       | Weight used in Dynarski (2000)                                  |
+
+
+## (a) Run a basic difference-in-difference model. What is the effect of the program?
+```{r}
+# Read in the data
+hope <- read_csv('HOPE_HW.csv')
+
+```
+
+```{r}
+# Difference-in-difference model determining if the program increased college enrollment
+hope_1 <- lm (InCollege ~ Georgia + After + AfterGeorgia, data = hope)
+
+# Outputting results
+jtools::summ(hope_1, model.info = FALSE, model.fit = FALSE)
+```
+
+According to the difference-in-difference model, there is a statistically significant difference between the college enrollment at a confidence interval of 90%. Implementation of the HOPE scholarship resulted in a 9% increase in the college enrollment rate. 
+
+Although I am likely to believe this model as I don't believe it is committed omitted variable bias or another bias of the sort, I do wonder what the effect of this scholarship was on the poorest Georgians. If you look at the book part f of this question addresses this concern and I do wonder what the results said.
+
+## (b) Use panel data formulation for a difference-in-difference model to control for all year and state effects. Comment briefly on the results.
+
+```{r}
+# Difference-in-difference model determining if the program increased college enrollment
+# Controlling for year and state effects
+hope_2 <- lm (InCollege ~ Georgia + After + AfterGeorgia + factor(StateCode) + 
+                factor(Year), data = hope)
+
+# Outputting results
+jtools::summ(hope_2, model.info = FALSE, model.fit = FALSE)
+
+```
+
+When controlling both *StateCode* and *Year*, the difference-in-difference model outputs a similar result when determining the effect of the HOPE Scholarship on college enrollment rates. According to this new model, implementation of the HOPE scholarship resulted in a 9% increase in the college enrollment rate. This value is still statistically significant at the 90% confidence interval.
+
+Because the results have not changed this shows us that even when we try to factor in potential fixed effects, like *year* and *StateCode*, the relationship is still strong. College enrollment rates, after the implementation of the HOPE Scholarship, was not affected by out of state enrollment or the year of enrollment. The consistency of these results point to the effectiveness of the HOPE scholarship.
+
+## (c) Add covariates for 18 year olds and African Americans to the panel data formulation. What is the effect of the HOPE program?
+
+```{r}
+# Difference-in-difference model determining if the program increased college enrollment
+# Controlling for year and state effects
+hope_3 <- lm (InCollege ~ Georgia + After + AfterGeorgia + factor(StateCode) + 
+                factor(Year) + Black + Age18, data = hope)
+
+# Outputting results
+jtools::summ(hope_3, model.info = FALSE, model.fit = FALSE)
+
+```
+
+Once again, and despite including both *Black* and *Age18* as covariates, the difference-in-difference model outputs a similar result when determining the effect of the HOPE Scholarship on college enrollment rates. According to this new model, implementation of the HOPE scholarship resulted in a 9% increase in the college enrollment rate. This value is still statistically significant at the 90% confidence interval.
+
+As discussed above the inclusion of the two covariates made little change to the model and, therefore, speaks to the strength of the HOPE Scholarship to increase college enrollment rates. I do still have my questions about household income levels as it relates to college enrollment rates but, given the limited modeling we were able to do, I feel confident in the effectiveness of this program. 
+
+
